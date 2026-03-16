@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Social Media — Numerica</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0e0f11;
+    --bg2: #16181c;
+    --bg3: #1e2026;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f0f0;
+    --muted: #7a7f8e;
+    --dim: #3a3f4e;
+    --ig: #E1306C;
+    --fb: #1877F2;
+    --li: #0A66C2;
+    --accent: #7c6fea;
+    --green: #3ecf8e;
+    --amber: #f59e0b;
+    --reel: #a78bfa;
+    --image: #34d399;
+    --carrousel: #fb923c;
+    --video: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ---- HEADER ---- */
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .logo { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.02em; }
+  .period-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ---- UPLOAD ZONE ---- */
+  .upload-section {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .upload-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .upload-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .upload-card {
+    background: var(--bg2);
+    border: 1px dashed var(--dim);
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .upload-card:hover { border-color: var(--border2); background: var(--bg3); }
+  .upload-card.loaded { border-style: solid; border-color: var(--green); background: rgba(62,207,142,0.05); }
+  .upload-card input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .platform-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ig { background: var(--ig); }
+  .dot-fb { background: var(--fb); }
+  .dot-li { background: var(--li); }
+  .dot-meta { background: var(--accent); }
+  .upload-card-name { font-size: 12px; font-weight: 500; }
+  .upload-card-status { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .upload-card.loaded .upload-card-status { color: var(--green); }
+  .check { display: none; position: absolute; top: 10px; right: 12px; color: var(--green); font-size: 14px; }
+  .upload-card.loaded .check { display: block; }
+
+  /* ---- MAIN ---- */
+  main { padding: 28px 32px; }
+
+  /* ---- KPI ROW ---- */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .kpi {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .kpi.k-views::before { background: var(--reel); }
+  .kpi.k-reach::before { background: var(--green); }
+  .kpi.k-engage::before { background: var(--amber); }
+  .kpi.k-posts::before { background: var(--video); }
+  .kpi.k-retention::before { background: var(--ig); }
+  .kpi-label { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .kpi-value { font-size: 28px; font-weight: 300; letter-spacing: -0.03em; line-height: 1; margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+  .kpi-sub { font-size: 11px; color: var(--muted); }
+
+  /* ---- CHARTS GRID ---- */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .chart-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .chart-card.wide { grid-column: 1 / -1; }
+  .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .chart-title { font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .chart-wrap { position: relative; height: 220px; }
+  .chart-wrap.tall { height: 280px; }
+
+  /* ---- TABLE ---- */
+  .table-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 14px;
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 10px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td {
+    padding: 10px 10px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: rgba(255,255,255,0.02); }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .tag-reel { background: rgba(167,139,250,0.15); color: var(--reel); border: 1px solid rgba(167,139,250,0.3); }
+  .tag-image { background: rgba(52,211,153,0.12); color: var(--image); border: 1px solid rgba(52,211,153,0.25); }
+  .tag-carrousel { background: rgba(251,146,60,0.12); color: var(--carrousel); border: 1px solid rgba(251,146,60,0.25); }
+  .tag-video { background: rgba(96,165,250,0.12); color: var(--video); border: 1px solid rgba(96,165,250,0.25); }
+  .p-ig { background: rgba(225,48,108,0.15); color: var(--ig); border: 1px solid rgba(225,48,108,0.3); }
+  .p-fb { background: rgba(24,119,242,0.15); color: #60a5fa; border: 1px solid rgba(24,119,242,0.3); }
+  .p-li { background: rgba(10,102,194,0.15); color: #38bdf8; border: 1px solid rgba(10,102,194,0.25); }
+  .tag-linkedin { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+
+  /* ---- FILTRES ---- */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .filter-label { font-size: 11px; color: var(--muted); margin-right: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .filter-btn {
+    padding: 5px 13px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .filter-btn:hover { border-color: var(--text); color: var(--text); }
+  .filter-btn.active { color: var(--bg); border-color: transparent; }
+  .filter-btn[data-type="Tous"].active { background: var(--muted); }
+  .filter-btn[data-type="Reel"].active { background: var(--reel); }
+  .filter-btn[data-type="Image"].active { background: var(--image); }
+  .filter-btn[data-type="Carrousel"].active { background: var(--carrousel); }
+  .filter-btn[data-type="Vidéo FB"].active { background: var(--video); }
+  .filter-btn[data-type="LinkedIn"].active { background: #38bdf8; }
+
+  /* ---- TOAST ---- */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 100;
+    max-width: 340px;
+    line-height: 1.5;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast-icon { margin-right: 6px; }
+  .toast.warn { border-color: rgba(245,158,11,0.4); }
+  .toast.warn .toast-icon::before { content: '⚠️'; }
+  .toast.ok .toast-icon::before { content: '✓ '; color: var(--green); }
+
+  /* ---- RESET BTN ---- */
+  .reset-btn {
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-left: auto;
+  }
+  .reset-btn:hover { color: #f87171; border-color: rgba(248,113,113,0.4); }
+  .num { font-family: 'DM Mono', monospace; font-size: 12px; }
+
+  /* ---- INSIGHTS ---- */
+  .insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .insight {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .insight-icon { font-size: 18px; margin-bottom: 8px; }
+  .insight-title { font-size: 12px; font-weight: 500; margin-bottom: 6px; }
+  .insight-body { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .insight-body strong { color: var(--text); font-weight: 500; }
+
+  /* ---- EMPTY STATE ---- */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-title { font-size: 16px; font-weight: 400; margin-bottom: 8px; color: var(--text); opacity: 0.5; }
+  .empty-sub { font-size: 12px; }
+
+  /* ---- LEGEND ---- */
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 640px) {
+    header, .upload-section, main { padding: 16px; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.wide { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Numerica · Pôle Numérique BFC</div>
+    <h1>Dashboard Social Media</h1>
+  </div>
+  <div class="period-badge" id="periodBadge">Aucune donnée chargée</div>
+</header>
+
+<div class="upload-section">
+  <div class="upload-title">Importer les fichiers du mois</div>
+  <div class="upload-grid">
+    <label class="upload-card" id="card-ig">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('ig', this)">
+      <div class="upload-card-header">
+        <div class="platform-dot dot-ig"></div>
+        <div class="upload-card-name">Instagram</div>
+      </div>
+      <div class="upload-card-status" id="status-ig">Déposer le .csv</div>
+      <span class="check">✓</span>
+    </label>
+    <label class="upload-card" id="card-meta">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('meta', this)">
+      <div class="upload-card-header">
+        <div class="platform-dot dot-meta"></div>
+        <div class="upload-card-name">Meta Vidéos</div>
+      </div>
+      <div class="upload-card-status" id="status-meta">Déposer le .csv</div>
+      <span class="check">✓</span>
+    </label>
+    <label class="upload-card" id="card-fb">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('fb', this)">
+      <div class="upload-card-header">
+        <div class="platform-dot dot-fb"></div>
+        <div class="upload-card-name">Facebook</div>
+      </div>
+      <div class="upload-card-status" id="status-fb">Déposer le .csv</div>
+      <span class="check">✓</span>
+    </label>
+    <label class="upload-card" id="card-li">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('li', this)">
+      <div class="upload-card-header">
+        <div class="platform-dot dot-li"></div>
+        <div class="upload-card-name">LinkedIn</div>
+      </div>
+      <div class="upload-card-status" id="status-li">Déposer le .xls / .xlsx / .csv</div>
+      <span class="check">✓</span>
+    </label>
+  </div>
+</div>
+
+<main id="mainContent">
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">Importe tes fichiers pour voir le dashboard</div>
+    <div class="empty-sub">Glisse les exports CSV/XLS de chaque plateforme dans les zones ci-dessus</div>
+  </div>
+</main>
+
+<script>
+// ---- DATA STORE ----
+const store = { ig: null, meta: null, fb: null, li: null };
+let chartInstances = {};
+let activeFilter = 'Tous';
+
+// ---- TOAST ----
+function showToast(msg, type = 'ok') {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast';
+    t.innerHTML = '<span class="toast-icon"></span><span class="toast-msg"></span>';
+    document.body.appendChild(t);
+  }
+  t.className = `toast ${type}`;
+  t.querySelector('.toast-msg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ---- DEDUPLICATION ----
+// Clé unique par plateforme basée sur l'ID ou date+description
+function rowKey(platform, row) {
+  if (platform === 'ig') {
+    return String(row['Identifiant de la publication'] || '') ||
+           (row['Heure de publication'] + '|' + String(row['Description'] || '').slice(0, 40));
+  }
+  if (platform === 'meta') {
+    return String(row['ID de la ressource vidéo'] || '') ||
+           (row['Heure de publication'] + '|' + String(row['Titre'] || '').slice(0, 40));
+  }
+  if (platform === 'li') {
+    return JSON.stringify(row).slice(0, 80);
+  }
+  return JSON.stringify(row).slice(0, 80);
+}
+
+function deduplicateData(platform, newData) {
+  const existing = store[platform] || [];
+  const existingKeys = new Set(existing.map(r => rowKey(platform, r)));
+  const deduped = [...existing];
+  let dupes = 0;
+  for (const row of newData) {
+    const key = rowKey(platform, row);
+    if (existingKeys.has(key)) {
+      dupes++;
+    } else {
+      existingKeys.add(key);
+      deduped.push(row);
+    }
+  }
+  return { deduped, dupes };
+}
+
+// ---- FILE LOADER ----
+function loadFile(platform, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const name = file.name.toLowerCase();
+
+  const reader = new FileReader();
+  reader.readAsArrayBuffer(file);
+
+  reader.onload = e => {
+    const buffer = e.target.result;
+
+    // XLS / XLSX → SheetJS
+    if (name.endsWith('.xls') || name.endsWith('.xlsx')) {
+      try {
+        const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawData = XLSX.utils.sheet_to_json(ws, { defval: null });
+        if (rawData && rawData.length > 0) {
+          const { deduped, dupes } = deduplicateData(platform, rawData);
+          store[platform] = deduped;
+          if (dupes > 0) {
+            showToast(`${dupes} doublon${dupes > 1 ? 's' : ''} ignoré${dupes > 1 ? 's' : ''} · ${deduped.length} lignes au total`, 'warn');
+          } else {
+            showToast(`${rawData.length} lignes importées depuis ${file.name}`);
+          }
+          setStatus(platform, `${deduped.length} lignes · ${file.name}`, true);
+          updateDashboard();
+        } else {
+          setStatus(platform, '⚠ Fichier vide', false);
+        }
+      } catch(err) {
+        setStatus(platform, '⚠ Erreur lecture XLS', false);
+        console.error(err);
+      }
+      return;
+    }
+
+    // CSV → détecter encodage (UTF-16 BOM ou UTF-8)
+    const bytes = new Uint8Array(buffer.slice(0, 4));
+    let text;
+    if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
+      text = new TextDecoder('utf-16le').decode(buffer);
+    } else if (bytes[0] === 0xFE && bytes[1] === 0xFF) {
+      text = new TextDecoder('utf-16be').decode(buffer);
+    } else {
+      text = new TextDecoder('utf-8').decode(buffer);
+    }
+    parseCSV(platform, text, file.name);
+  };
+}
+
+function parseCSV(platform, text, filename) {
+  text = text.replace(/^\uFEFF/, '').replace(/^\uFFFE/, '');
+  const lines = text.split('\n');
+
+  if (platform === 'fb') {
+    store.fb = parseFacebookSections(text);
+    setStatus('fb', filename, true);
+    showToast(`Données Facebook importées depuis ${filename}`);
+    updateDashboard();
+    return;
+  }
+
+  let startLine = 0;
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    if (lines[i].trim().startsWith('sep=') || lines[i].trim() === '') continue;
+    startLine = i;
+    break;
+  }
+  const cleanText = lines.slice(startLine).join('\n');
+
+  const result = Papa.parse(cleanText, { header: true, skipEmptyLines: true, dynamicTyping: true });
+  if (result.data && result.data.length > 0) {
+    const { deduped, dupes } = deduplicateData(platform, result.data);
+    store[platform] = deduped;
+    if (dupes > 0) {
+      showToast(`${dupes} doublon${dupes > 1 ? 's' : ''} ignoré${dupes > 1 ? 's' : ''} · ${deduped.length} lignes au total`, 'warn');
+    } else {
+      showToast(`${result.data.length} lignes importées depuis ${filename}`);
+    }
+    setStatus(platform, `${deduped.length} lignes · ${filename}`, true);
+    updateDashboard();
+  } else {
+    setStatus(platform, '⚠ Aucune donnée trouvée', false);
+  }
+}
+
+function parseFacebookSections(text) {
+  // Facebook export = sections textuelles
+  const sections = {};
+  const lines = text.split('\n').map(l => l.replace(/"/g, '').trim()).filter(l => l);
+  let current = null;
+  for (const line of lines) {
+    if (!line.includes(',') && line.length > 0 && line.length < 60) {
+      current = line;
+      sections[current] = [];
+    } else if (current && line.includes(',')) {
+      sections[current].push(line.split(','));
+    }
+  }
+  return sections;
+}
+
+function setStatus(platform, msg, ok) {
+  document.getElementById(`status-${platform}`).textContent = ok ? '✓ ' + msg.split(' · ')[0] : msg;
+  document.getElementById(`card-${platform}`).classList.toggle('loaded', ok);
+}
+
+// ---- DASHBOARD UPDATE ----
+function updateDashboard() {
+  const hasData = store.ig || store.meta || store.li;
+  document.getElementById('emptyState').style.display = hasData ? 'none' : 'block';
+  if (!hasData) return;
+
+  const igData = (store.ig || []).filter(r => r['Date'] === 'Global' || !r['Date']);
+  const metaData = (store.meta || []).filter(r => r['Date'] === 'Global' || !r['Date']);
+  const liData = store.li || [];
+
+  // Période
+  const dates = [
+    ...igData.map(r => r['Heure de publication']),
+    ...metaData.map(r => r['Heure de publication'])
+  ].filter(Boolean).map(d => new Date(d)).filter(d => !isNaN(d));
+  if (dates.length) {
+    const min = new Date(Math.min(...dates));
+    const max = new Date(Math.max(...dates));
+    const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    document.getElementById('periodBadge').textContent = `${fmt(min)} → ${fmt(max)}`;
+  }
+
+  renderKPIs(igData, metaData, liData);
+  renderCharts(igData, metaData, liData);
+  renderTable(igData, metaData, liData);
+  renderInsights(igData, metaData, liData);
+}
+
+// ---- KPIs ----
+function renderKPIs(igData, metaData, liData) {
+  const totalViews = sum(igData, 'Vues') + sum(metaData, 'Couverture');
+  const totalReach = sum(igData, 'Couverture');
+  const totalEngage = sum(igData, "Mentions J\u2019aime") + sum(igData, 'Partages') + sum(igData, 'Commentaires') +
+                      sum(metaData, 'Réactions') + sum(metaData, 'Partages') + sum(metaData, 'Commentaires');
+  const totalPosts = igData.length + metaData.length + liData.length;
+  const avgRetFb = metaData.length ? Math.round(avg(metaData, 'Secondes moyen(ne) regardé(e)')) : 0;
+
+  // LinkedIn KPIs — détecter colonnes dynamiquement
+  const liImpressions = liData.length ? sum(liData, findColLi(liData, ['impressions','vues','views'])) : 0;
+  const liEngagements = liData.length ? sum(liData, findColLi(liData, ['engagements','interactions','clics'])) : 0;
+
+  const kpiHTML = `
+    <div class="kpi k-views">
+      <div class="kpi-label">Vues totales</div>
+      <div class="kpi-value">${fmt(totalViews)}</div>
+      <div class="kpi-sub">IG + Meta vidéos</div>
+    </div>
+    <div class="kpi k-reach">
+      <div class="kpi-label">Couverture IG</div>
+      <div class="kpi-value">${fmt(totalReach)}</div>
+      <div class="kpi-sub">personnes atteintes</div>
+    </div>
+    <div class="kpi k-engage">
+      <div class="kpi-label">Engagements</div>
+      <div class="kpi-value">${fmt(totalEngage)}</div>
+      <div class="kpi-sub">likes + partages + commentaires</div>
+    </div>
+    <div class="kpi k-posts">
+      <div class="kpi-label">Publications</div>
+      <div class="kpi-value">${totalPosts}</div>
+      <div class="kpi-sub">${countByType(igData, metaData, liData)}</div>
+    </div>
+    ${liImpressions ? `<div class="kpi k-retention" style="--accent:var(--li)">
+      <div class="kpi-label">Impressions LinkedIn</div>
+      <div class="kpi-value">${fmt(liImpressions)}</div>
+      <div class="kpi-sub">${liEngagements ? fmt(liEngagements) + ' engagements' : liData.length + ' publications'}</div>
+    </div>` : metaData.length ? `<div class="kpi k-retention">
+      <div class="kpi-label">Rétention moy. FB</div>
+      <div class="kpi-value">${avgRetFb}s</div>
+      <div class="kpi-sub">durée moyenne regardée</div>
+    </div>` : ''}
+  `;
+  getOrCreate('kpi-section', 'kpi-row').innerHTML = kpiHTML;
+}
+
+// ---- CHARTS ----
+function renderCharts(igData, metaData, liData) {
+  const section = getOrCreate('charts-section', 'charts-grid');
+
+  // Données par type
+  const byType = {};
+  igData.forEach(r => {
+    const t = shortType(r['Type de publication'] || 'Autre');
+    if (!byType[t]) byType[t] = { vues: 0, couverture: 0, count: 0 };
+    byType[t].vues += r['Vues'] || 0;
+    byType[t].couverture += r['Couverture'] || 0;
+    byType[t].count++;
+  });
+  metaData.forEach(r => {
+    const t = 'Vidéo FB';
+    if (!byType[t]) byType[t] = { vues: 0, couverture: 0, count: 0 };
+    byType[t].vues += r['Couverture'] || 0;
+    byType[t].count++;
+  });
+  if (liData.length) {
+    byType['LinkedIn'] = { vues: sum(liData, findColLi(liData, ['impressions','vues','views'])), couverture: 0, count: liData.length };
+  }
+
+  const typeLabels = Object.keys(byType);
+  const typeColors = typeLabels.map(t => typeColor(t));
+
+  // Toutes publications triées par date
+  const allPosts = [
+    ...igData.map(r => ({ label: shortDesc(r['Description'] || r['Titre'] || 'Post'), vues: r['Vues'] || 0, type: shortType(r['Type de publication']), date: r['Heure de publication'] })),
+    ...metaData.map(r => ({ label: shortDesc(r['Titre'] || 'Vidéo FB'), vues: r['Couverture'] || 0, type: 'Vidéo FB', date: r['Heure de publication'] })),
+    ...liData.map(r => ({ label: shortDesc(r[findColLi(liData, ['titre','title','texte','contenu'])] || 'Post LinkedIn'), vues: r[findColLi(liData, ['impressions','vues','views'])] || 0, type: 'LinkedIn', date: r[findColLi(liData, ['date','publié','published'])] || '' }))
+  ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const liBlock = liData.length ? `<div class="legend-item"><div class="legend-dot" style="background:var(--li)"></div>LinkedIn</div>` : '';
+
+  section.innerHTML = `
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Vues par type de contenu</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chartType"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Répartition des publications</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chartDoughnut"></canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-header">
+        <div class="chart-title">Performance par publication</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--reel)"></div>Reel</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--image)"></div>Image</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--carrousel)"></div>Carrousel</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--video)"></div>Vidéo FB</div>
+          ${liBlock}
+        </div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chartPosts"></canvas></div>
+    </div>
+  `;
+
+  destroyChart('chartType');
+  destroyChart('chartDoughnut');
+  destroyChart('chartPosts');
+
+  const tooltipOpts = { backgroundColor: '#1e2026', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, titleColor: '#f0f0f0', bodyColor: '#7a7f8e', padding: 10, cornerRadius: 8 };
+
+  chartInstances['chartType'] = new Chart(document.getElementById('chartType'), {
+    type: 'bar',
+    data: {
+      labels: typeLabels,
+      datasets: [{ data: typeLabels.map(t => byType[t].vues), backgroundColor: typeColors.map(c => c + '33'), borderColor: typeColors, borderWidth: 1.5, borderRadius: 6, borderSkipped: false }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: tooltipOpts }, scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f8e', font: { size: 11 } } }, y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f8e', font: { size: 11 } } } } }
+  });
+
+  chartInstances['chartDoughnut'] = new Chart(document.getElementById('chartDoughnut'), {
+    type: 'doughnut',
+    data: { labels: typeLabels, datasets: [{ data: typeLabels.map(t => byType[t].count), backgroundColor: typeColors.map(c => c + '44'), borderColor: typeColors, borderWidth: 1.5, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: true, position: 'right', labels: { color: '#7a7f8e', font: { family: 'DM Sans', size: 11 }, boxWidth: 10, padding: 12 } }, tooltip: tooltipOpts } }
+  });
+
+  chartInstances['chartPosts'] = new Chart(document.getElementById('chartPosts'), {
+    type: 'bar',
+    data: { labels: allPosts.map(p => p.label), datasets: [{ data: allPosts.map(p => p.vues), backgroundColor: allPosts.map(p => typeColor(p.type) + '33'), borderColor: allPosts.map(p => typeColor(p.type)), borderWidth: 1.5, borderRadius: 6, borderSkipped: false }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: tooltipOpts }, scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f8e', font: { size: 11 } } }, y: { grid: { display: false }, ticks: { color: '#f0f0f0', font: { size: 11, family: 'DM Sans' } } } } }
+  });
+}
+
+// ---- TABLE ----
+function renderTable(igData, metaData, liData) {
+  const section = getOrCreate('table-section', 'table-card');
+
+  const liImprCol = findColLi(liData, ['impressions','vues','views']);
+  const liEngCol = findColLi(liData, ['engagements','interactions','clics','likes']);
+  const liShareCol = findColLi(liData, ['partages','shares']);
+  const liDescCol = findColLi(liData, ['titre','title','texte','contenu','description']);
+  const liDateCol = findColLi(liData, ['date','publié','published']);
+
+  const allRows = [
+    ...igData.map(r => ({ platform: 'ig', type: shortType(r['Type de publication'] || ''), desc: shortDesc(r['Description'] || ''), date: formatDate(r['Heure de publication']), vues: r['Vues'] || 0, couverture: r['Couverture'] || 0, likes: r["Mentions J\u2019aime"] || 0, partages: r['Partages'] || 0, duree: r['Durée (s)'] ? r['Durée (s)'] + 's' : '—' })),
+    ...metaData.map(r => ({ platform: 'fb', type: 'Vidéo FB', desc: shortDesc(r['Titre'] || 'Vidéo'), date: formatDate(r['Heure de publication']), vues: r['Couverture'] || 0, couverture: r['Vues de vidéo de 3 secondes'] || 0, likes: r['Réactions'] || 0, partages: r['Partages'] || 0, duree: r['Durée (s)'] ? r['Durée (s)'] + 's' : '—' })),
+    ...liData.map(r => ({ platform: 'li', type: 'LinkedIn', desc: shortDesc(r[liDescCol] || 'Post LinkedIn'), date: formatDate(r[liDateCol]), vues: r[liImprCol] || 0, couverture: 0, likes: r[liEngCol] || 0, partages: r[liShareCol] || 0, duree: '—' }))
+  ].sort((a, b) => b.vues - a.vues);
+
+  // Types disponibles pour les filtres
+  const types = ['Tous', ...new Set(allRows.map(r => r.type))];
+  const filtered = activeFilter === 'Tous' ? allRows : allRows.filter(r => r.type === activeFilter);
+
+  section.innerHTML = `
+    <div class="chart-header" style="margin-bottom:14px">
+      <div class="chart-title">Détail par publication</div>
+    </div>
+    <div class="filter-bar" style="margin-bottom:14px">
+      <span class="filter-label">Filtrer</span>
+      ${types.map(t => `<button class="filter-btn${activeFilter === t ? ' active' : ''}" data-type="${t}" onclick="setFilter('${t}')">${t}</button>`).join('')}
+      <button class="reset-btn" onclick="resetAllData()" title="Effacer toutes les données">↺ Tout réinitialiser</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Plateforme</th><th>Type</th><th>Publication</th><th>Date</th>
+        <th>Vues / Impressions</th><th>Couverture</th><th>Likes</th><th>Partages</th><th>Durée</th>
+      </tr></thead>
+      <tbody>
+        ${filtered.length === 0 ? `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">Aucune publication pour ce filtre</td></tr>` :
+        filtered.map(r => `<tr>
+          <td><span class="tag p-${r.platform}">${r.platform.toUpperCase()}</span></td>
+          <td><span class="tag tag-${r.type.toLowerCase().replace(/\s/g,'-').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}">${r.type}</span></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">${r.desc}</td>
+          <td class="num" style="color:var(--muted)">${r.date}</td>
+          <td class="num"><strong>${r.vues}</strong></td>
+          <td class="num">${r.couverture || '—'}</td>
+          <td class="num">${r.likes}</td>
+          <td class="num">${r.partages}</td>
+          <td class="num" style="color:var(--muted)">${r.duree}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);text-align:right">${filtered.length} publication${filtered.length > 1 ? 's' : ''} affichée${filtered.length > 1 ? 's' : ''}${activeFilter !== 'Tous' ? ` · filtre : ${activeFilter}` : ''}</div>
+  `;
+}
+
+function setFilter(type) {
+  activeFilter = type;
+  const igData = (store.ig || []).filter(r => r['Date'] === 'Global' || !r['Date']);
+  const metaData = (store.meta || []).filter(r => r['Date'] === 'Global' || !r['Date']);
+  const liData = store.li || [];
+  renderTable(igData, metaData, liData);
+}
+
+function resetAllData() {
+  if (!confirm('Effacer toutes les données importées et repartir de zéro ?')) return;
+  store.ig = null; store.meta = null; store.fb = null; store.li = null;
+  activeFilter = 'Tous';
+  ['ig','meta','fb','li'].forEach(p => {
+    setStatus(p, p === 'li' ? 'Déposer le .xls / .xlsx / .csv' : 'Déposer le .csv', false);
+    document.getElementById(`card-${p}`).classList.remove('loaded');
+  });
+  document.getElementById('periodBadge').textContent = 'Aucune donnée chargée';
+  // Vider les sections dynamiques
+  ['kpi-section','charts-section','table-section','insights-section'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+  document.getElementById('emptyState').style.display = 'block';
+  showToast('Données réinitialisées');
+}
+
+// ---- INSIGHTS ----
+function renderInsights(igData, metaData, liData) {
+  const section = getOrCreate('insights-section', 'insights-grid');
+
+  const reels = igData.filter(r => (r['Type de publication'] || '').includes('Reel'));
+  const images = igData.filter(r => (r['Type de publication'] || '').includes('Image'));
+  const avgReels = reels.length ? Math.round(avg(reels, 'Vues')) : 0;
+  const avgImages = images.length ? Math.round(avg(images, 'Vues')) : 0;
+  const best = [...igData, ...metaData].sort((a, b) => (b['Vues'] || b['Couverture'] || 0) - (a['Vues'] || a['Couverture'] || 0))[0];
+  const bestDesc = best ? shortDesc(best['Description'] || best['Titre'] || 'Publication') : '—';
+  const bestViews = best ? (best['Vues'] || best['Couverture'] || 0) : 0;
+  const avgRetFb = metaData.length ? Math.round(avg(metaData, 'Secondes moyen(ne) regardé(e)')) : 0;
+  const liImpr = liData.length ? sum(liData, findColLi(liData, ['impressions','vues','views'])) : 0;
+
+  section.innerHTML = `
+    <div class="insight">
+      <div class="insight-icon">🏆</div>
+      <div class="insight-title">Meilleure publication</div>
+      <div class="insight-body">"${bestDesc}" avec <strong>${fmt(bestViews)} vues</strong></div>
+    </div>
+    ${reels.length && images.length ? `<div class="insight">
+      <div class="insight-icon">📈</div>
+      <div class="insight-title">Reels vs Images</div>
+      <div class="insight-body">Reels : <strong>${fmt(avgReels)} vues moy.</strong><br>Images : <strong>${fmt(avgImages)} vues moy.</strong><br>${avgReels > avgImages ? `+${Math.round((avgReels/avgImages-1)*100)}% pour les Reels` : 'Les images performent mieux'}</div>
+    </div>` : ''}
+    ${metaData.length ? `<div class="insight">
+      <div class="insight-icon">⏱</div>
+      <div class="insight-title">Rétention Facebook</div>
+      <div class="insight-body">Durée moyenne regardée : <strong>${avgRetFb}s</strong> sur des vidéos de ${Math.round(avg(metaData, 'Durée (s)'))}s en moyenne</div>
+    </div>` : ''}
+    ${liData.length ? `<div class="insight">
+      <div class="insight-icon">💼</div>
+      <div class="insight-title">LinkedIn</div>
+      <div class="insight-body"><strong>${liData.length} publications</strong> · <strong>${fmt(liImpr)} impressions</strong> au total</div>
+    </div>` : ''}
+    <div class="insight">
+      <div class="insight-icon">📅</div>
+      <div class="insight-title">Volume publié</div>
+      <div class="insight-body">${countByType(igData, metaData, liData).split(' · ').join('<br>')}</div>
+    </div>
+  `;
+}
+
+// ---- HELPERS ----
+function findColLi(data, keywords) {
+  if (!data || !data.length) return '';
+  const keys = Object.keys(data[0]);
+  for (const kw of keywords) {
+    const found = keys.find(k => k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(kw.toLowerCase()));
+    if (found) return found;
+  }
+  return keys[0] || '';
+}
+
+function col(name) { return name; }
+
+function sum(arr, key) {
+  if (!key) return 0;
+  return arr.reduce((acc, r) => {
+    const v = r[key];
+    return acc + (typeof v === 'number' ? v : parseFloat(v) || 0);
+  }, 0);
+}
+
+function avg(arr, key) {
+  if (!arr.length || !key) return 0;
+  return sum(arr, key) / arr.length;
+}
+
+function fmt(n) {
+  n = Math.round(n);
+  return n >= 1000 ? (n/1000).toFixed(1) + 'k' : String(n);
+}
+
+function shortType(t) {
+  if (!t) return 'Autre';
+  if (t.includes('Reel')) return 'Reel';
+  if (t.includes('Image')) return 'Image';
+  if (t.includes('Carrousel')) return 'Carrousel';
+  if (t.includes('Vidéo') || t.includes('Video')) return 'Vidéo FB';
+  return t;
+}
+
+function typeColor(t) {
+  const map = { 'Reel': '#a78bfa', 'Image': '#34d399', 'Carrousel': '#fb923c', 'Vidéo FB': '#60a5fa', 'LinkedIn': '#38bdf8', 'Autre': '#94a3b8' };
+  return map[t] || '#94a3b8';
+}
+
+function shortDesc(d) {
+  if (!d) return '—';
+  return String(d).replace(/\\r\\n/g, ' ').replace(/\n/g, ' ').trim().slice(0, 50) + (String(d).length > 50 ? '…' : '');
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); }
+  catch { return String(d); }
+}
+
+function countByType(igData, metaData, liData) {
+  const types = {};
+  igData.forEach(r => { const t = shortType(r['Type de publication']); types[t] = (types[t]||0)+1; });
+  if (metaData.length) types['Vidéo FB'] = (types['Vidéo FB']||0) + metaData.length;
+  if (liData && liData.length) types['LinkedIn'] = (types['LinkedIn']||0) + liData.length;
+  return Object.entries(types).map(([k,v]) => `${v} ${k}`).join(' · ');
+}
+
+function getOrCreate(id, className) {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    el.className = className;
+    if (id === 'kpi-section') {
+      document.getElementById('mainContent').insertBefore(el, document.getElementById('mainContent').firstChild);
+    } else {
+      document.getElementById('mainContent').appendChild(el);
+    }
+  }
+  return el;
+}
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+// ---- DEMO DATA (données Numerica déjà chargées) ----
+window.addEventListener('load', () => {
+  // Pré-charger les données connues
+  store.ig = [
+    {"Type de publication":"Reel IG","Description":"Cérémonie de remise des diplômes CDA","Durée (s)":38,"Heure de publication":"02/19/2026 23:11","Date":"Global","Vues":402,"Couverture":299,"Mentions J\u2019aime":9,"Partages":6,"Commentaires":0,"Enregistrements":0},
+    {"Type de publication":"Reel IG","Description":"Clap de fin pour le stage de Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 12:26","Date":"Global","Vues":273,"Couverture":233,"Mentions J\u2019aime":9,"Partages":8,"Commentaires":0,"Enregistrements":0},
+    {"Type de publication":"Carrousel IG","Description":"Numerica recrute (CDI) — Chargé de développement commercial","Durée (s)":0,"Heure de publication":"02/17/2026 03:25","Date":"Global","Vues":232,"Couverture":68,"Mentions J\u2019aime":2,"Partages":0,"Commentaires":0,"Enregistrements":0},
+    {"Type de publication":"Image IG","Description":"Bienvenue chez Numerica ! Syriel en stage","Durée (s)":0,"Heure de publication":"02/19/2026 11:11","Date":"Global","Vues":242,"Couverture":82,"Mentions J\u2019aime":8,"Partages":0,"Commentaires":1,"Enregistrements":0},
+    {"Type de publication":"Image IG","Description":"Clap de fin pour la promotion 2025 CDA","Durée (s)":0,"Heure de publication":"02/13/2026 11:16","Date":"Global","Vues":224,"Couverture":80,"Mentions J\u2019aime":9,"Partages":0,"Commentaires":0,"Enregistrements":0},
+    {"Type de publication":"Image IG","Description":"En direct de la dernière soutenance dev web","Durée (s)":0,"Heure de publication":"03/12/2026 06:06","Date":"Global","Vues":88,"Couverture":43,"Mentions J\u2019aime":0,"Partages":0,"Commentaires":0,"Enregistrements":0}
+  ];
+  store.meta = [
+    {"Titre":"Remise diplômes CDA","Durée (s)":38,"Heure de publication":"02/20/2026 00:33","Date":"Global","Couverture":173,"Vues de vidéo de 3 secondes":82,"Secondes regardé(e)":1407.578,"Secondes moyen(ne) regardé(e)":8.043,"Réactions":5,"Commentaires":0,"Partages":0},
+    {"Titre":"Fin de stage Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 07:10","Date":"Global","Couverture":214,"Vues de vidéo de 3 secondes":78,"Secondes regardé(e)":2716.616,"Secondes moyen(ne) regardé(e)":9.565,"Réactions":11,"Commentaires":1,"Partages":3}
+  ];
+  setStatus('ig', '6 publications · démo', true);
+  setStatus('meta', '2 vidéos · démo', true);
+  document.getElementById('periodBadge').textContent = 'Fév → Mars 2026';
+  updateDashboard();
+});
+</script>
+</body>
+</html>
