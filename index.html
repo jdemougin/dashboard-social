@@ -450,15 +450,39 @@ function loadFile(platform, input) {
     if (name.endsWith('.xls') || name.endsWith('.xlsx')) {
       try {
         const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
-        const ws = wb.Sheets[wb.SheetNames[0]];
+
+        // Pour LinkedIn : chercher l'onglet qui contient les posts (pas les stats par date)
+        // L'onglet posts contient "Titre du post" ou "Type de post" dans ses colonnes
+        let sheetName = wb.SheetNames[0];
+        if (platform === 'li') {
+          for (const sn of wb.SheetNames) {
+            const ws = wb.Sheets[sn];
+            const preview = XLSX.utils.sheet_to_json(ws, { header: 1, range: 0, defval: '' });
+            const headers = (preview[0] || []).map(h => String(h).toLowerCase());
+            // L'onglet posts a "titre" ou "type de post" dans les en-têtes
+            if (headers.some(h => h.includes('titre') || h.includes('type de post') || h.includes('lien'))) {
+              sheetName = sn;
+              break;
+            }
+          }
+        }
+
+        const ws = wb.Sheets[sheetName];
         const rawData = XLSX.utils.sheet_to_json(ws, { defval: null });
-        if (rawData && rawData.length > 0) {
-          const { deduped, dupes } = deduplicateData(platform, rawData);
+
+        // Filtrer les lignes vides ou qui ne sont que des en-têtes répétés
+        const cleaned = rawData.filter(r => {
+          const vals = Object.values(r).filter(v => v !== null && v !== '');
+          return vals.length >= 3;
+        });
+
+        if (cleaned && cleaned.length > 0) {
+          const { deduped, dupes } = deduplicateData(platform, cleaned);
           store[platform] = deduped;
           if (dupes > 0) {
             showToast(`${dupes} doublon${dupes > 1 ? 's' : ''} ignoré${dupes > 1 ? 's' : ''} · ${deduped.length} lignes au total`, 'warn');
           } else {
-            showToast(`${rawData.length} lignes importées depuis ${file.name}`);
+            showToast(`${cleaned.length} lignes importées depuis ${file.name}${platform === 'li' ? ` (onglet : ${sheetName})` : ''}`);
           }
           setStatus(platform, `${deduped.length} lignes · ${file.name}`, true);
           updateDashboard();
