@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<!-- saved from url=(0062)file:///Users/juliendemougin/Downloads/dashboard-social_1.html -->
-<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Social Media — Numerica</title>
-<script src="./index_files/chart.umd.min.js"></script>
-<script src="./index_files/papaparse.min.js"></script>
-<script src="./index_files/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
@@ -322,34 +322,34 @@
   <div>
     <div class="logo">Numerica · Pôle Numérique BFC</div>
     <h1>Dashboard Vidéos</h1>
-    <div id="dashSubtitle" style="font-size:12px;color:var(--muted);margin-top:3px">4 vidéos · Instagram · Facebook · LinkedIn</div>
+    <div id="dashSubtitle" style="font-size:12px;color:var(--muted);margin-top:3px">Instagram · Facebook · LinkedIn</div>
   </div>
-  <div class="period-badge" id="periodBadge">19 févr. 2026 → 13 mars 2026</div>
+  <div class="period-badge" id="periodBadge">Aucune donnée chargée</div>
 </header>
 
 <div class="upload-section">
   <div class="upload-title">Importer les fichiers du mois</div>
   <div class="upload-grid">
-    <label class="upload-card loaded" id="card-ig">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(&#39;ig&#39;, this)">
+    <label class="upload-card" id="card-ig">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('ig', this)">
       <div class="upload-card-header">
         <div class="platform-dot dot-ig"></div>
         <div class="upload-card-name">Instagram</div>
       </div>
-      <div class="upload-card-status" id="status-ig">✓ 2 Reels</div>
+      <div class="upload-card-status" id="status-ig">Déposer le .csv</div>
       <span class="check">✓</span>
     </label>
-    <label class="upload-card loaded" id="card-meta">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(&#39;meta&#39;, this)">
+    <label class="upload-card" id="card-meta">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('meta', this)">
       <div class="upload-card-header">
         <div class="platform-dot dot-meta"></div>
         <div class="upload-card-name">Facebook</div>
       </div>
-      <div class="upload-card-status" id="status-meta">✓ 2 vidéos</div>
+      <div class="upload-card-status" id="status-meta">Déposer le .csv</div>
       <span class="check">✓</span>
     </label>
     <label class="upload-card" id="card-li">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(&#39;li&#39;, this)">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('li', this)">
       <div class="upload-card-header">
         <div class="platform-dot dot-li"></div>
         <div class="upload-card-name">LinkedIn</div>
@@ -360,140 +360,13 @@
   </div>
 </div>
 
-<main id="mainContent"><div id="kpi-section" class="kpi-row">
-    <div class="kpi k-views">
-      <div class="kpi-label">Vues totales</div>
-      <div class="kpi-value">1.1k</div>
-      <div class="kpi-sub">IG + Meta vidéos</div>
-    </div>
-    <div class="kpi k-reach">
-      <div class="kpi-label">Couverture IG</div>
-      <div class="kpi-value">532</div>
-      <div class="kpi-sub">personnes atteintes</div>
-    </div>
-    <div class="kpi k-engage">
-      <div class="kpi-label">Engagements</div>
-      <div class="kpi-value">52</div>
-      <div class="kpi-sub">likes + partages + commentaires</div>
-    </div>
-    <div class="kpi k-posts">
-      <div class="kpi-label">Publications</div>
-      <div class="kpi-value">4</div>
-      <div class="kpi-sub">2 Reel · 2 Vidéo FB</div>
-    </div>
-    <div class="kpi k-retention">
-      <div class="kpi-label">Rétention moy. FB</div>
-      <div class="kpi-value">9s</div>
-      <div class="kpi-sub">durée moyenne regardée</div>
-    </div>
-  </div>
-  <div class="empty-state" id="emptyState" style="display: none;">
+<main id="mainContent">
+  <div class="empty-state" id="emptyState">
     <div class="empty-icon">📊</div>
     <div class="empty-title">Importe tes fichiers pour voir le dashboard</div>
     <div class="empty-sub">Glisse les exports CSV/XLS de chaque plateforme dans les zones ci-dessus</div>
   </div>
-<div id="charts-section" class="charts-grid">
-    <div class="chart-card">
-      <div class="chart-header">
-        <div class="chart-title">Vues par type de contenu</div>
-      </div>
-      <div class="chart-wrap"><canvas id="chartType" width="871" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 871px;"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-header">
-        <div class="chart-title">Répartition des publications</div>
-      </div>
-      <div class="chart-wrap"><canvas id="chartDoughnut" width="871" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 871px;"></canvas></div>
-    </div>
-    <div class="chart-card wide">
-      <div class="chart-header">
-        <div class="chart-title">Performance par publication</div>
-        <div class="legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#E1306C"></div>Instagram</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#1877F2"></div>Facebook</div>
-          
-        </div>
-      </div>
-      <div class="chart-wrap tall"><canvas id="chartPosts" width="1799" height="280" style="display: block; box-sizing: border-box; height: 280px; width: 1799px;"></canvas></div>
-    </div>
-  </div><div id="table-section" class="table-card">
-    <div class="chart-header" style="margin-bottom:14px">
-      <div class="chart-title">Détail par publication</div>
-    </div>
-    <div class="filter-bar" style="margin-bottom:14px">
-      <span class="filter-label">Filtrer</span>
-      <button class="filter-btn active" data-type="Tous" onclick="setFilter(&#39;Tous&#39;)">Tous</button><button class="filter-btn" data-type="Reel" onclick="setFilter(&#39;Reel&#39;)">Reel</button><button class="filter-btn" data-type="Vidéo FB" onclick="setFilter(&#39;Vidéo FB&#39;)">Vidéo FB</button>
-      <button class="reset-btn" onclick="resetAllData()" title="Effacer toutes les données">↺ Tout réinitialiser</button>
-    </div>
-    <table>
-      <thead><tr>
-        <th>Plateforme</th><th>Type</th><th>Publication</th><th>Date</th>
-        <th>Vues / Impressions</th><th>Couverture</th><th>Likes</th><th>Partages</th><th>Durée</th>
-      </tr></thead>
-      <tbody>
-        <tr>
-          <td><span class="tag p-ig">IG</span></td>
-          <td><span class="tag tag-reel">Reel</span></td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">Cérémonie de remise des diplômes CDA</td>
-          <td class="num" style="color:var(--muted)">19 févr.</td>
-          <td class="num"><strong>402</strong></td>
-          <td class="num">299</td>
-          <td class="num">9</td>
-          <td class="num">6</td>
-          <td class="num" style="color:var(--muted)">38s</td>
-        </tr><tr>
-          <td><span class="tag p-ig">IG</span></td>
-          <td><span class="tag tag-reel">Reel</span></td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">Clap de fin pour le stage de Syriel</td>
-          <td class="num" style="color:var(--muted)">13 mars</td>
-          <td class="num"><strong>273</strong></td>
-          <td class="num">233</td>
-          <td class="num">9</td>
-          <td class="num">8</td>
-          <td class="num" style="color:var(--muted)">51s</td>
-        </tr><tr>
-          <td><span class="tag p-fb">FB</span></td>
-          <td><span class="tag tag-video-fb">Vidéo FB</span></td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">Fin de stage Syriel</td>
-          <td class="num" style="color:var(--muted)">13 mars</td>
-          <td class="num"><strong>214</strong></td>
-          <td class="num">78</td>
-          <td class="num">11</td>
-          <td class="num">3</td>
-          <td class="num" style="color:var(--muted)">51s</td>
-        </tr><tr>
-          <td><span class="tag p-fb">FB</span></td>
-          <td><span class="tag tag-video-fb">Vidéo FB</span></td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">Remise diplômes CDA</td>
-          <td class="num" style="color:var(--muted)">20 févr.</td>
-          <td class="num"><strong>173</strong></td>
-          <td class="num">82</td>
-          <td class="num">5</td>
-          <td class="num">0</td>
-          <td class="num" style="color:var(--muted)">38s</td>
-        </tr>
-      </tbody>
-    </table>
-    <div style="margin-top:10px;font-size:11px;color:var(--muted);text-align:right">4 publications affichées</div>
-  </div><div id="insights-section" class="insights-grid">
-    <div class="insight">
-      <div class="insight-icon">🏆</div>
-      <div class="insight-title">Meilleure publication</div>
-      <div class="insight-body">"Cérémonie de remise des diplômes CDA" <span style="opacity:.6;font-size:11px">(IG)</span><br>avec <strong>402 impressions/vues</strong></div>
-    </div>
-    
-    <div class="insight">
-      <div class="insight-icon">⏱</div>
-      <div class="insight-title">Rétention Facebook</div>
-      <div class="insight-body">Durée moyenne regardée : <strong>9s</strong> sur des vidéos de 45s en moyenne</div>
-    </div>
-    
-    <div class="insight">
-      <div class="insight-icon">📅</div>
-      <div class="insight-title">Volume publié</div>
-      <div class="insight-body">2 Reel<br>2 Vidéo FB</div>
-    </div>
-  </div></main>
+</main>
 
 <script>
 // ---- DATA STORE ----
@@ -1390,6 +1263,5 @@ window.addEventListener('load', () => {
   updateDashboard();
 });
 </script>
-
-
-</body></html>
+</body>
+</html>
