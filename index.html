@@ -369,6 +369,65 @@
 </main>
 
 <script>
+// ---- CONFIG SUPABASE ----
+const SUPABASE_URL = 'https://paemnbxtwwvqwpupozmh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhZW1uYnh0d3d2cXdwdXBvem1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTc1OTksImV4cCI6MjA4OTIzMzU5OX0.Uienq_GLtvNf1-_F87jMFn3BGsQQZ5G8-AI_Gc9SVdA';
+const SB_TABLE = 'dashboard_data';
+
+async function sbFetch(method, path, body) {
+  const url = `${SUPABASE_URL}/rest/v1/${SB_TABLE}${path || ''}`;
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=minimal' : ''
+  };
+  const res = await fetch(url, {
+    method, headers, body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Supabase ${method} ${path} error ${res.status}: ${txt}`);
+  }
+  return method === 'GET' ? res.json() : true;
+}
+
+async function saveToSupabase() {
+  try {
+    const platforms = ['ig', 'meta', 'li'];
+    for (const p of platforms) {
+      if (store[p]) {
+        // UPSERT : insert ou update si la plateforme existe déjà
+        await sbFetch('POST', '', { platform: p, data: JSON.stringify(store[p]) });
+      } else {
+        // Supprimer si null
+        await sbFetch('DELETE', `?platform=eq.${p}`, null);
+      }
+    }
+    console.log('[Supabase] Sauvegarde OK');
+  } catch(e) {
+    console.warn('[Supabase] Erreur sauvegarde:', e.message);
+  }
+}
+
+async function loadFromSupabase() {
+  try {
+    const rows = await sbFetch('GET', '?select=platform,data', null);
+    if (!rows || rows.length === 0) return false;
+    let loaded = false;
+    for (const row of rows) {
+      if (row.platform && row.data) {
+        store[row.platform] = JSON.parse(row.data);
+        loaded = true;
+      }
+    }
+    return loaded;
+  } catch(e) {
+    console.warn('[Supabase] Erreur chargement:', e.message);
+    return false;
+  }
+}
+
 // ---- DATA STORE ----
 const store = { ig: null, meta: null, fb: null, li: null };
 let chartInstances = {};
@@ -669,6 +728,7 @@ function loadFile(platform, input) {
             store[platform] = data;
             showToast(`${data.length} posts LinkedIn importés depuis ${file.name}`);
             setStatus(platform, `${data.length} lignes · ${file.name}`, true);
+            saveToStorage();
             updateDashboard();
           } else {
             setStatus(platform, '⚠ Aucune donnée trouvée', false);
@@ -694,6 +754,7 @@ function loadFile(platform, input) {
             showToast(`${cleaned.length} lignes importées depuis ${file.name}`);
           }
           setStatus(platform, `${deduped.length} lignes · ${file.name}`, true);
+          saveToStorage();
           updateDashboard();
         } else {
           setStatus(platform, '⚠ Fichier vide', false);
@@ -749,6 +810,7 @@ function parseCSV(platform, text, filename) {
       showToast(`${result.data.length} lignes importées depuis ${filename}`);
     }
     setStatus(platform, `${deduped.length} lignes · ${filename}`, true);
+    saveToStorage();
     updateDashboard();
   } else {
     setStatus(platform, '⚠ Aucune donnée trouvée', false);
@@ -1021,6 +1083,7 @@ function setFilter(type) {
 function resetAllData() {
   if (!confirm('Effacer toutes les données importées et repartir de zéro ?')) return;
   store.ig = null; store.meta = null; store.li = null;
+  saveToStorage(); // efface localStorage et Supabase
   activeFilter = 'Tous';
   ['ig','meta','li'].forEach(p => {
     setStatus(p, p === 'li' ? 'Déposer le .xls' : 'Déposer le .csv', false);
@@ -1245,8 +1308,65 @@ function destroyChart(id) {
   if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
 }
 
-// ---- DEMO DATA (données Numerica déjà chargées) ----
-window.addEventListener('load', () => {
+// ---- PERSISTANCE LOCALSTORAGE ----
+function saveToStorage() {
+  // localStorage (fallback local)
+  try {
+    if (store.ig)   localStorage.setItem('dash_ig',   JSON.stringify(store.ig));
+    else            localStorage.removeItem('dash_ig');
+    if (store.meta) localStorage.setItem('dash_meta', JSON.stringify(store.meta));
+    else            localStorage.removeItem('dash_meta');
+    if (store.li)   localStorage.setItem('dash_li',   JSON.stringify(store.li));
+    else            localStorage.removeItem('dash_li');
+  } catch(e) {}
+  // Supabase (partagé)
+  saveToSupabase();
+}
+
+function loadFromStorage() {
+  try {
+    const ig   = localStorage.getItem('dash_ig');
+    const meta = localStorage.getItem('dash_meta');
+    const li   = localStorage.getItem('dash_li');
+    if (ig)   store.ig   = JSON.parse(ig);
+    if (meta) store.meta = JSON.parse(meta);
+    if (li)   store.li   = JSON.parse(li);
+    return !!(ig || meta || li);
+  } catch(e) { return false; }
+}
+
+// ---- DÉMARRAGE ----
+window.addEventListener('load', async () => {
+  // Essayer Supabase en premier (données partagées)
+  const fromSupabase = await loadFromSupabase();
+
+  if (fromSupabase) {
+    if (store.ig)   setStatus('ig',   `${store.ig.length} lignes · sync`, true);
+    if (store.meta) setStatus('meta', `${store.meta.length} lignes · sync`, true);
+    if (store.li)   setStatus('li',   `${store.li.length} lignes · sync`, true);
+    // Aussi mettre à jour le localStorage local
+    try {
+      if (store.ig)   localStorage.setItem('dash_ig',   JSON.stringify(store.ig));
+      if (store.meta) localStorage.setItem('dash_meta', JSON.stringify(store.meta));
+      if (store.li)   localStorage.setItem('dash_li',   JSON.stringify(store.li));
+    } catch(e) {}
+    updateDashboard();
+    showToast('Données synchronisées ✓');
+    return;
+  }
+
+  // Fallback localStorage (si pas de réseau)
+  const fromLocal = loadFromStorage();
+  if (fromLocal) {
+    if (store.ig)   setStatus('ig',   `${store.ig.length} lignes · local`, true);
+    if (store.meta) setStatus('meta', `${store.meta.length} lignes · local`, true);
+    if (store.li)   setStatus('li',   `${store.li.length} lignes · local`, true);
+    updateDashboard();
+    showToast('Données locales restaurées');
+    return;
+  }
+
+  // Données démo au premier lancement
   store.ig = [
     {"Type de publication":"Reel IG","Description":"Cérémonie de remise des diplômes CDA","Durée (s)":38,"Heure de publication":"02/19/2026 23:11","Date":"Global","Vues":402,"Couverture":299,"Mentions J\u2019aime":9,"Partages":6,"Commentaires":0,"Enregistrements":0},
     {"Type de publication":"Reel IG","Description":"Clap de fin pour le stage de Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 12:26","Date":"Global","Vues":273,"Couverture":233,"Mentions J\u2019aime":9,"Partages":8,"Commentaires":0,"Enregistrements":0}
@@ -1255,9 +1375,8 @@ window.addEventListener('load', () => {
     {"Titre":"Remise diplômes CDA","Durée (s)":38,"Heure de publication":"02/20/2026 00:33","Date":"Global","Couverture":173,"Vues de vidéo de 3 secondes":82,"Secondes regardé(e)":1407.578,"Secondes moyen(ne) regardé(e)":8.043,"Réactions":5,"Commentaires":0,"Partages":0},
     {"Titre":"Fin de stage Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 07:10","Date":"Global","Couverture":214,"Vues de vidéo de 3 secondes":78,"Secondes regardé(e)":2716.616,"Secondes moyen(ne) regardé(e)":9.565,"Réactions":11,"Commentaires":1,"Partages":3}
   ];
-  // Pas de données démo LinkedIn — elles seront chargées via le fichier XLS
   store.li = null;
-  setStatus('ig', '2 Reels · démo', true);
+  setStatus('ig',   '2 Reels · démo', true);
   setStatus('meta', '2 vidéos · démo', true);
   document.getElementById('periodBadge').textContent = 'Fév → Mars 2026';
   updateDashboard();
