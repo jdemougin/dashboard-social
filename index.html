@@ -452,15 +452,14 @@ function loadFile(platform, input) {
         const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
 
         // Pour LinkedIn : chercher l'onglet qui contient les posts (pas les stats par date)
-        // L'onglet posts contient "Titre du post" ou "Type de post" dans ses colonnes
+        // L'onglet posts contient "Titre du post" dans ses colonnes (onglet 2 du XLS LinkedIn)
         let sheetName = wb.SheetNames[0];
         if (platform === 'li') {
           for (const sn of wb.SheetNames) {
-            const ws = wb.Sheets[sn];
-            const preview = XLSX.utils.sheet_to_json(ws, { header: 1, range: 0, defval: '' });
-            const headers = (preview[0] || []).map(h => String(h).toLowerCase());
-            // L'onglet posts a "titre" ou "type de post" dans les en-têtes
-            if (headers.some(h => h.includes('titre') || h.includes('type de post') || h.includes('lien'))) {
+            const ws2 = wb.Sheets[sn];
+            const preview = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: '' });
+            const headers = (preview[0] || []).map(h => String(h).toLowerCase().trim());
+            if (headers.some(h => h.includes('titre du post') || h.includes('type de post') || h.includes('publier le lien'))) {
               sheetName = sn;
               break;
             }
@@ -604,9 +603,9 @@ function renderKPIs(igData, metaData, liData) {
   const totalPosts = igData.length + metaData.length + liData.length;
   const avgRetFb = metaData.length ? Math.round(avg(metaData, 'Secondes moyen(ne) regardé(e)')) : 0;
 
-  // LinkedIn KPIs — détecter colonnes dynamiquement
-  const liImpressions = liData.length ? sum(liData, findColLi(liData, ['impressions','vues','views'])) : 0;
-  const liEngagements = liData.length ? sum(liData, findColLi(liData, ['engagements','interactions','clics'])) : 0;
+  // LinkedIn KPIs
+  const liImpressions = liData.length ? sum(liData, liCol(liData, 'impressions')) : 0;
+  const liEngagements = liData.length ? sum(liData, liCol(liData, 'likes')) + sum(liData, liCol(liData, 'commentaires')) + sum(liData, liCol(liData, 'partages')) : 0;
 
   const kpiHTML = `
     <div class="kpi k-views">
@@ -662,17 +661,16 @@ function renderCharts(igData, metaData, liData) {
     byType[t].count++;
   });
   if (liData.length) {
-    byType['LinkedIn'] = { vues: sum(liData, findColLi(liData, ['impressions','vues','views'])), couverture: 0, count: liData.length };
+    byType['LinkedIn'] = { vues: sum(liData, liCol(liData, 'impressions')), couverture: 0, count: liData.length };
   }
 
   const typeLabels = Object.keys(byType);
   const typeColors = typeLabels.map(t => typeColor(t));
 
-  // Toutes publications triées par date
   const allPosts = [
     ...igData.map(r => ({ label: shortDesc(r['Description'] || r['Titre'] || 'Post'), vues: r['Vues'] || 0, type: shortType(r['Type de publication']), date: r['Heure de publication'] })),
     ...metaData.map(r => ({ label: shortDesc(r['Titre'] || 'Vidéo FB'), vues: r['Couverture'] || 0, type: 'Vidéo FB', date: r['Heure de publication'] })),
-    ...liData.map(r => ({ label: shortDesc(r[findColLi(liData, ['titre','title','texte','contenu'])] || 'Post LinkedIn'), vues: r[findColLi(liData, ['impressions','vues','views'])] || 0, type: 'LinkedIn', date: r[findColLi(liData, ['date','publié','published'])] || '' }))
+    ...liData.map(r => ({ label: shortDesc(r[liCol(liData,'titre')] || 'Post LinkedIn'), vues: r[liCol(liData,'impressions')] || 0, type: 'LinkedIn', date: r[liCol(liData,'date')] || '' }))
   ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const liBlock = liData.length ? `<div class="legend-item"><div class="legend-dot" style="background:var(--li)"></div>LinkedIn</div>` : '';
@@ -737,16 +735,18 @@ function renderCharts(igData, metaData, liData) {
 function renderTable(igData, metaData, liData) {
   const section = getOrCreate('table-section', 'table-card');
 
-  const liImprCol = findColLi(liData, ['impressions','vues','views']);
-  const liEngCol = findColLi(liData, ['engagements','interactions','clics','likes']);
-  const liShareCol = findColLi(liData, ['partages','shares']);
-  const liDescCol = findColLi(liData, ['titre','title','texte','contenu','description']);
-  const liDateCol = findColLi(liData, ['date','publié','published']);
+  const liImprCol   = liCol(liData, 'impressions');
+  const liLikesCol  = liCol(liData, 'likes');
+  const liShareCol  = liCol(liData, 'partages');
+  const liDescCol   = liCol(liData, 'titre');
+  const liDateCol   = liCol(liData, 'date');
+  const liTypeCol   = liCol(liData, 'type');
+  const liVuesCol   = liCol(liData, 'vues');
 
   const allRows = [
     ...igData.map(r => ({ platform: 'ig', type: shortType(r['Type de publication'] || ''), desc: shortDesc(r['Description'] || ''), date: formatDate(r['Heure de publication']), vues: r['Vues'] || 0, couverture: r['Couverture'] || 0, likes: r["Mentions J\u2019aime"] || 0, partages: r['Partages'] || 0, duree: r['Durée (s)'] ? r['Durée (s)'] + 's' : '—' })),
     ...metaData.map(r => ({ platform: 'fb', type: 'Vidéo FB', desc: shortDesc(r['Titre'] || 'Vidéo'), date: formatDate(r['Heure de publication']), vues: r['Couverture'] || 0, couverture: r['Vues de vidéo de 3 secondes'] || 0, likes: r['Réactions'] || 0, partages: r['Partages'] || 0, duree: r['Durée (s)'] ? r['Durée (s)'] + 's' : '—' })),
-    ...liData.map(r => ({ platform: 'li', type: 'LinkedIn', desc: shortDesc(r[liDescCol] || 'Post LinkedIn'), date: formatDate(r[liDateCol]), vues: r[liImprCol] || 0, couverture: 0, likes: r[liEngCol] || 0, partages: r[liShareCol] || 0, duree: '—' }))
+    ...liData.map(r => ({ platform: 'li', type: r[liTypeCol] || 'LinkedIn', desc: shortDesc(r[liDescCol] || 'Post LinkedIn'), date: formatDate(r[liDateCol]), vues: r[liImprCol] || 0, couverture: r[liVuesCol] || 0, likes: r[liLikesCol] || 0, partages: r[liShareCol] || 0, duree: '—' }))
   ].sort((a, b) => b.vues - a.vues);
 
   // Types disponibles pour les filtres
@@ -826,7 +826,7 @@ function renderInsights(igData, metaData, liData) {
   const bestDesc = best ? shortDesc(best['Description'] || best['Titre'] || 'Publication') : '—';
   const bestViews = best ? (best['Vues'] || best['Couverture'] || 0) : 0;
   const avgRetFb = metaData.length ? Math.round(avg(metaData, 'Secondes moyen(ne) regardé(e)')) : 0;
-  const liImpr = liData.length ? sum(liData, findColLi(liData, ['impressions','vues','views'])) : 0;
+  const liImpr = liData.length ? sum(liData, liCol(liData, 'impressions')) : 0;
 
   section.innerHTML = `
     <div class="insight">
@@ -862,10 +862,35 @@ function findColLi(data, keywords) {
   if (!data || !data.length) return '';
   const keys = Object.keys(data[0]);
   for (const kw of keywords) {
-    const found = keys.find(k => k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(kw.toLowerCase()));
+    const found = keys.find(k => k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(kw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')));
     if (found) return found;
   }
-  return keys[0] || '';
+  return '';
+}
+
+// Colonnes LinkedIn connues
+function liCol(data, type) {
+  const map = {
+    impressions: ['Impressions', 'Impressions (total)'],
+    vues:        ['Vues'],
+    clics:       ['Clics', 'Clics (total)'],
+    likes:       ["J\u2019aime", "J'aime", 'Réactions', 'Réactions (total)'],
+    commentaires:['Commentaires', 'Commentaires (total)'],
+    partages:    ['Republications', 'Republications (total)'],
+    titre:       ['Titre du post'],
+    type:        ['Type de post', 'Type de contenu'],
+    date:        ['Date de création', 'Date'],
+    lien:        ['Publier le lien']
+  };
+  const candidates = map[type] || [];
+  if (!data || !data.length) return '';
+  const keys = Object.keys(data[0]);
+  for (const c of candidates) {
+    const found = keys.find(k => k.trim() === c || k.trim().toLowerCase() === c.toLowerCase());
+    if (found) return found;
+  }
+  // fallback fuzzy
+  return findColLi(data, candidates.map(c => c.slice(0, 6)));
 }
 
 function col(name) { return name; }
