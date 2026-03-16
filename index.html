@@ -322,7 +322,8 @@
 <header>
   <div>
     <div class="logo">Numerica · Pôle Numérique BFC</div>
-    <h1>Dashboard Social Media</h1>
+    <h1>Dashboard Vidéos</h1>
+    <div id="dashSubtitle" style="font-size:12px;color:var(--muted);margin-top:3px">Instagram Reels · Facebook · LinkedIn</div>
   </div>
   <div class="period-badge" id="periodBadge">Aucune donnée chargée</div>
 </header>
@@ -400,6 +401,174 @@ function showToast(msg, type = 'ok') {
   t._timer = setTimeout(() => t.classList.remove('show'), 4000);
 }
 
+// ---- PARSER BIFF8 CUSTOM POUR LINKEDIN XLS ----
+// SheetJS lit mal les valeurs numériques de ce fichier (offset bug j+14 vs j+10)
+// Ce parser lit directement les records BIFF8 avec le bon offset
+function parseBiff8LinkedIn(buffer) {
+  console.log('[BIFF8] start, byteLength:', buffer.byteLength);
+  const u8 = new Uint8Array(buffer);
+  const dv = new DataView(buffer);
+
+  // Lire le FAT OLE2
+  const sectorSize = 1 << dv.getUint16(30, true);
+  console.log('[BIFF8] sectorSize:', sectorSize);
+  const fatSector = dv.getUint32(76, true);
+  const fat = [];
+  for (let i = 0; i < sectorSize / 4; i++) {
+    fat.push(dv.getUint32((fatSector + 1) * sectorSize + i * 4, true));
+  }
+
+  function readChain(start) {
+    const chunks = [];
+    let sec = start;
+    const visited = new Set();
+    while (sec < 0xFFFFFFFC && !visited.has(sec)) {
+      visited.add(sec);
+      const off = (sec + 1) * sectorSize;
+      chunks.push(u8.slice(off, off + sectorSize));
+      sec = fat[sec] ?? 0xFFFFFFFF;
+    }
+    const total = chunks.reduce((s, c) => s + c.length, 0);
+    const out = new Uint8Array(total);
+    let pos = 0;
+    for (const c of chunks) { out.set(c, pos); pos += c.length; }
+    return out.buffer;
+  }
+
+  // Workbook stream commence au secteur 2
+  const wbBuf = readChain(2);
+  const wbDv = new DataView(wbBuf);
+  const wbU8 = new Uint8Array(wbBuf);
+
+  // Extraire le SST (Shared String Table)
+  const strings = [];
+  let i = 0;
+  while (i < wbBuf.byteLength - 4) {
+    const rt = wbDv.getUint16(i, true);
+    const rl = wbDv.getUint16(i + 2, true);
+    if (rt === 0x00FC) { // SST
+      const total = wbDv.getUint32(i + 8, true);
+      let pos = i + 12;
+      for (let s = 0; s < total && pos + 3 < wbBuf.byteLength; s++) {
+        const slen = wbDv.getUint16(pos, true);
+        const grbit = wbU8[pos + 2];
+        pos += 3;
+        if (grbit & 4) pos += 4;
+        if (grbit & 8) pos += 4;
+        if (grbit & 1) {
+          let str = '';
+          for (let c = 0; c < slen && pos + 1 < wbBuf.byteLength; c++) {
+            str += String.fromCodePoint(wbDv.getUint16(pos, true));
+            pos += 2;
+          }
+          strings.push(str);
+        } else {
+          let str = '';
+          for (let c = 0; c < slen && pos < wbBuf.byteLength; c++) {
+            str += String.fromCharCode(wbU8[pos++]);
+          }
+          strings.push(str);
+        }
+      }
+      break;
+    }
+    i += 4 + rl;
+  }
+
+  // Trouver l'offset de l'onglet "Tous les posts"
+  let targetOff = null;
+  i = 0;
+  while (i < wbBuf.byteLength - 4) {
+    const rt = wbDv.getUint16(i, true);
+    const rl = wbDv.getUint16(i + 2, true);
+    if (rt === 0x0085) { // BOUNDSHEET
+      const off = wbDv.getUint32(i + 4, true);
+      const nl = wbU8[i + 10];
+      const fl = wbU8[i + 11] || 0;
+      let sheetName = '';
+      if (fl & 1) {
+        for (let c = 0; c < nl; c++) sheetName += String.fromCodePoint(wbDv.getUint16(i + 12 + c * 2, true));
+      } else {
+        for (let c = 0; c < nl; c++) sheetName += String.fromCharCode(wbU8[i + 12 + c]);
+      }
+      if (sheetName.toLowerCase().includes('posts') || sheetName.toLowerCase().includes('all')) {
+        targetOff = off;
+      }
+    }
+    i += 4 + rl;
+  }
+
+  if (targetOff === null) return [];
+
+  // Lire les cellules de l'onglet "Tous les posts"
+  const rows = {};
+  i = targetOff;
+  while (i < wbBuf.byteLength - 4) {
+    const rt = wbDv.getUint16(i, true);
+    const rl = wbDv.getUint16(i + 2, true);
+    if (rt === 0x000A) break; // EOF
+
+    let row = null, col = null, val = null;
+
+    if (rt === 0x00FD && rl >= 8) { // LABELSST
+      row = wbDv.getUint16(i + 4, true);
+      col = wbDv.getUint16(i + 6, true);
+      const idx = wbDv.getUint32(i + 10, true);
+      val = strings[idx] ?? '';
+    } else if (rt === 0x0203 && rl >= 14) { // NUMBER — offset correct: j+10
+      row = wbDv.getUint16(i + 4, true);
+      col = wbDv.getUint16(i + 6, true);
+      val = wbDv.getFloat64(i + 10, true); // ← j+10 est le bon offset
+    } else if (rt === 0x00BD) { // MULRK
+      row = wbDv.getUint16(i + 4, true);
+      const firstCol = wbDv.getUint16(i + 6, true);
+      const numRks = Math.floor((rl - 6) / 6);
+      for (let k = 0; k < numRks; k++) {
+        const base = i + 8 + k * 6;
+        if (base + 6 > i + 4 + rl) break;
+        const rk = wbDv.getUint32(base + 2, true);
+        let v;
+        if (rk & 2) {
+          v = rk >> 2;
+        } else {
+          // Reconstruire le float64 sans BigInt
+          const tmpBuf = new ArrayBuffer(8);
+          const tmpDv = new DataView(tmpBuf);
+          tmpDv.setUint32(0, 0, true);
+          tmpDv.setUint32(4, rk & 0xFFFFFFFC, true);
+          v = tmpDv.getFloat64(0, true);
+        }
+        if (rk & 1) v /= 100;
+        if (!rows[row]) rows[row] = {};
+        rows[row][firstCol + k] = v;
+      }
+    }
+
+    if (row !== null && col !== null && val !== null) {
+      if (!rows[row]) rows[row] = {};
+      rows[row][col] = val;
+    }
+    i += 4 + rl;
+  }
+
+  // Reconstruire le tableau avec les en-têtes (ligne 1)
+  const headers = rows[1] || {};
+  console.log('[BIFF8] rows found:', Object.keys(rows).length, '| headers:', Object.keys(headers).length);
+  const result = [];
+  for (const rowIdx of Object.keys(rows).map(Number).sort((a, b) => a - b)) {
+    if (rowIdx < 2) continue;
+    const row = rows[rowIdx];
+    const obj = {};
+    for (const [col, v] of Object.entries(row)) {
+      const h = headers[col];
+      if (h) obj[h] = v;
+    }
+    if (Object.keys(obj).length >= 3) result.push(obj);
+  }
+  console.log('[BIFF8] result rows:', result.length);
+  return result;
+}
+
 // ---- DEDUPLICATION ----
 // Clé unique par plateforme basée sur l'ID ou date+description
 function rowKey(platform, row) {
@@ -446,71 +615,42 @@ function loadFile(platform, input) {
   reader.onload = e => {
     const buffer = e.target.result;
 
-    // XLS / XLSX → SheetJS
+    // XLS / XLSX
     if (name.endsWith('.xls') || name.endsWith('.xlsx')) {
       try {
-        const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
-
-        // Pour LinkedIn : chercher l'onglet "Tous les posts" (onglet 2)
-        // Les en-têtes sont en ligne 1 (ligne 0 = texte descriptif)
-        let sheetName = wb.SheetNames[0];
-        if (platform === 'li') {
-          // Chercher d'abord par nom exact
-          const exact = wb.SheetNames.find(n => n === 'Tous les posts' || n === 'All posts');
-          if (exact) {
-            sheetName = exact;
+        // LinkedIn .xls : SheetJS lit mal les valeurs numériques de ce fichier spécifique
+        // (bug d'offset j+14 vs j+10 dans les records NUMBER BIFF8)
+        // → on utilise notre propre parser BIFF8 pour LinkedIn
+        if (platform === 'li' && name.endsWith('.xls')) {
+          console.log('[LI] Début parsing BIFF8, buffer size:', buffer.byteLength);
+          try {
+            const data = parseBiff8LinkedIn(buffer);
+            console.log('[LI] Résultat parser:', data.length, 'lignes');
+            if (data.length > 0) console.log('[LI] Première ligne:', JSON.stringify(data[0]).slice(0, 200));
+            if (data && data.length > 0) {
+            const { deduped, dupes } = deduplicateData(platform, data);
+            store[platform] = deduped;
+            if (dupes > 0) {
+              showToast(`${dupes} doublon${dupes > 1 ? 's' : ''} ignoré${dupes > 1 ? 's' : ''} · ${deduped.length} lignes au total`, 'warn');
+            } else {
+              showToast(`${data.length} posts LinkedIn importés depuis ${file.name}`);
+            }
+            setStatus(platform, `${deduped.length} lignes · ${file.name}`, true);
+            updateDashboard();
           } else {
-            // Fallback : chercher l'onglet avec "Titre du post" en ligne 1
-            for (const sn of wb.SheetNames) {
-              const ws2 = wb.Sheets[sn];
-              const preview = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: '' });
-              // Chercher dans les 3 premières lignes
-              for (let li = 0; li < Math.min(3, preview.length); li++) {
-                const headers = (preview[li] || []).map(h => String(h).trim());
-                if (headers.some(h => h === 'Titre du post' || h === 'Type de post' || h === 'Publier le lien')) {
-                  sheetName = sn;
-                  break;
-                }
-              }
-            }
+            setStatus(platform, '⚠ Aucune donnée trouvée', false);
           }
+          } catch(liErr) {
+            console.error('[LI] Erreur parser BIFF8:', liErr);
+            setStatus(platform, '⚠ Erreur: ' + liErr.message, false);
+            showToast('Erreur LinkedIn: ' + liErr.message, 'warn');
+          }
+          return;
         }
-
-        const ws = wb.Sheets[sheetName];
-
-        // LinkedIn : les en-têtes sont en ligne 1 (ligne 0 = texte descriptif)
-        // On utilise sheet_to_json avec header:1 pour récupérer toutes les lignes
-        // puis on reconstruit avec les vrais en-têtes
-        let rawData;
-        if (platform === 'li') {
-          const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-          // Trouver la ligne d'en-tête (celle qui contient "Titre du post" ou "Impressions")
-          let headerRowIdx = 1; // par défaut ligne 1
-          for (let ri = 0; ri < Math.min(5, allRows.length); ri++) {
-            const row = allRows[ri] || [];
-            if (row.some(c => c === 'Titre du post' || c === 'Impressions' || c === 'Type de post')) {
-              headerRowIdx = ri;
-              break;
-            }
-          }
-          const headers = allRows[headerRowIdx] || [];
-          rawData = [];
-          for (let ri = headerRowIdx + 1; ri < allRows.length; ri++) {
-            const row = allRows[ri] || [];
-            if (row.every(c => c === null || c === '')) continue;
-            const obj = {};
-            headers.forEach((h, ci) => { if (h) obj[h] = row[ci] ?? null; });
-            rawData.push(obj);
-          }
-        } else {
-          rawData = XLSX.utils.sheet_to_json(ws, { defval: null });
-        }
-
-        // Filtrer les lignes vides ou qui ne sont que des en-têtes répétés
-        const cleaned = rawData.filter(r => {
-          const vals = Object.values(r).filter(v => v !== null && v !== '');
-          return vals.length >= 3;
-        });
+        const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawData = XLSX.utils.sheet_to_json(ws, { defval: null });
+        const cleaned = rawData.filter(r => Object.values(r).filter(v => v !== null && v !== '').length >= 3);
 
         if (cleaned && cleaned.length > 0) {
           const { deduped, dupes } = deduplicateData(platform, cleaned);
@@ -518,7 +658,7 @@ function loadFile(platform, input) {
           if (dupes > 0) {
             showToast(`${dupes} doublon${dupes > 1 ? 's' : ''} ignoré${dupes > 1 ? 's' : ''} · ${deduped.length} lignes au total`, 'warn');
           } else {
-            showToast(`${cleaned.length} lignes importées depuis ${file.name}${platform === 'li' ? ` (onglet : ${sheetName})` : ''}`);
+            showToast(`${cleaned.length} lignes importées depuis ${file.name}`);
           }
           setStatus(platform, `${deduped.length} lignes · ${file.name}`, true);
           updateDashboard();
@@ -526,7 +666,7 @@ function loadFile(platform, input) {
           setStatus(platform, '⚠ Fichier vide', false);
         }
       } catch(err) {
-        setStatus(platform, '⚠ Erreur lecture XLS', false);
+        setStatus(platform, '⚠ Erreur lecture XLS : ' + err.message, false);
         console.error(err);
       }
       return;
@@ -609,9 +749,27 @@ function updateDashboard() {
   document.getElementById('emptyState').style.display = hasData ? 'none' : 'block';
   if (!hasData) return;
 
-  const igData = (store.ig || []).filter(r => r['Date'] === 'Global' || !r['Date']);
+  // Instagram : garder uniquement les Reels (vidéos)
+  const igData = (store.ig || [])
+    .filter(r => r['Date'] === 'Global' || !r['Date'])
+    .filter(r => (r['Type de publication'] || '').includes('Reel'));
+
+  // Meta Facebook : toutes les entrées sont déjà des vidéos
   const metaData = (store.meta || []).filter(r => r['Date'] === 'Global' || !r['Date']);
-  const liData = store.li || [];
+
+  // LinkedIn : garder uniquement les vidéos
+  // La colonne "Type de contenu" contient "Vidéo" pour les vidéos
+  const liTypeColRaw = liCol(store.li || [], 'type');
+  const allLi = store.li || [];
+
+  // Vérifier si des lignes ont bien le type "Vidéo"
+  const liVideos = allLi.filter(r => {
+    const t = String(r[liTypeColRaw] || '').trim().toLowerCase();
+    return t.includes('vid');
+  });
+
+  // Si aucune vidéo trouvée (type absent ou vide), ne rien afficher pour LI
+  const liDataFinal = liVideos;
 
   // Période
   const dates = [
@@ -621,14 +779,19 @@ function updateDashboard() {
   if (dates.length) {
     const min = new Date(Math.min(...dates));
     const max = new Date(Math.max(...dates));
-    const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-    document.getElementById('periodBadge').textContent = `${fmt(min)} → ${fmt(max)}`;
+    const fmtD = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    document.getElementById('periodBadge').textContent = `${fmtD(min)} → ${fmtD(max)}`;
   }
 
-  renderKPIs(igData, metaData, liData);
-  renderCharts(igData, metaData, liData);
-  renderTable(igData, metaData, liData);
-  renderInsights(igData, metaData, liData);
+  // Afficher le nb de vidéos filtrées dans le badge
+  const totalVideos = igData.length + metaData.length + liDataFinal.length;
+  const subtitle = document.getElementById('dashSubtitle');
+  if (subtitle) subtitle.textContent = `${totalVideos} vidéo${totalVideos > 1 ? 's' : ''} · Instagram Reels · Facebook · LinkedIn`;
+
+  renderKPIs(igData, metaData, liDataFinal);
+  renderCharts(igData, metaData, liDataFinal);
+  renderTable(igData, metaData, liDataFinal);
+  renderInsights(igData, metaData, liDataFinal);
 }
 
 // ---- KPIs ----
@@ -859,9 +1022,20 @@ function renderInsights(igData, metaData, liData) {
   const images = igData.filter(r => (r['Type de publication'] || '').includes('Image'));
   const avgReels = reels.length ? Math.round(avg(reels, 'Vues')) : 0;
   const avgImages = images.length ? Math.round(avg(images, 'Vues')) : 0;
-  const best = [...igData, ...metaData].sort((a, b) => (b['Vues'] || b['Couverture'] || 0) - (a['Vues'] || a['Couverture'] || 0))[0];
-  const bestDesc = best ? shortDesc(best['Description'] || best['Titre'] || 'Publication') : '—';
-  const bestViews = best ? (best['Vues'] || best['Couverture'] || 0) : 0;
+  const liImprCol = liCol(liData, 'impressions');
+  const liDescCol2 = liCol(liData, 'titre');
+
+  // Normaliser toutes les vidéos en un format commun pour trouver le meilleur
+  const allVideos = [
+    ...igData.map(r => ({ desc: shortDesc(r['Description'] || ''), vues: r['Vues'] || 0, platform: 'IG' })),
+    ...metaData.map(r => ({ desc: shortDesc(r['Titre'] || 'Vidéo FB'), vues: r['Couverture'] || 0, platform: 'FB' })),
+    ...liData.map(r => ({ desc: liDesc(r, liData), vues: r[liImprCol] || 0, platform: 'LI' }))
+  ].sort((a, b) => b.vues - a.vues);
+
+  const best = allVideos[0];
+  const bestDesc = best ? best.desc : '—';
+  const bestViews = best ? best.vues : 0;
+  const bestPlatform = best ? best.platform : '';
   const avgRetFb = metaData.length ? Math.round(avg(metaData, 'Secondes moyen(ne) regardé(e)')) : 0;
   const liImpr = liData.length ? sum(liData, liCol(liData, 'impressions')) : 0;
 
@@ -869,7 +1043,7 @@ function renderInsights(igData, metaData, liData) {
     <div class="insight">
       <div class="insight-icon">🏆</div>
       <div class="insight-title">Meilleure publication</div>
-      <div class="insight-body">"${bestDesc}" avec <strong>${fmt(bestViews)} vues</strong></div>
+      <div class="insight-body">"${bestDesc}"${bestPlatform ? ` <span style="opacity:.6;font-size:11px">(${bestPlatform})</span>` : ''}<br>avec <strong>${fmt(bestViews)} impressions/vues</strong></div>
     </div>
     ${reels.length && images.length ? `<div class="insight">
       <div class="insight-icon">📈</div>
@@ -991,15 +1165,24 @@ function shortDesc(d) {
 }
 
 function formatDate(d) {
-  if (!d) return '—';
+  if (d === null || d === undefined || d === '') return '—';
   try {
-    // Gérer format DD/MM/YYYY (LinkedIn)
-    if (typeof d === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(d.trim())) {
-      const [day, month, year] = d.trim().split('/');
+    // Date Excel numérique (ex: 46066) → convertir
+    if (typeof d === 'number') {
+      // Excel date serial : 1 = 1 jan 1900, avec bug bissextile 1900
+      const excelEpoch = new Date(1899, 11, 30);
+      const ms = excelEpoch.getTime() + d * 86400000;
+      return new Date(ms).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    }
+    const s = String(d).trim();
+    // Format DD/MM/YYYY (LinkedIn CSV)
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [day, month, year] = s.split('/');
       return new Date(`${year}-${month}-${day}`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     }
-    const date = new Date(d);
-    if (isNaN(date)) return String(d);
+    // Format MM/DD/YYYY HH:MM (Instagram/Meta)
+    const date = new Date(s);
+    if (isNaN(date)) return s;
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   } catch { return String(d); }
 }
@@ -1036,17 +1219,13 @@ window.addEventListener('load', () => {
   // Pré-charger les données connues
   store.ig = [
     {"Type de publication":"Reel IG","Description":"Cérémonie de remise des diplômes CDA","Durée (s)":38,"Heure de publication":"02/19/2026 23:11","Date":"Global","Vues":402,"Couverture":299,"Mentions J\u2019aime":9,"Partages":6,"Commentaires":0,"Enregistrements":0},
-    {"Type de publication":"Reel IG","Description":"Clap de fin pour le stage de Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 12:26","Date":"Global","Vues":273,"Couverture":233,"Mentions J\u2019aime":9,"Partages":8,"Commentaires":0,"Enregistrements":0},
-    {"Type de publication":"Carrousel IG","Description":"Numerica recrute (CDI) — Chargé de développement commercial","Durée (s)":0,"Heure de publication":"02/17/2026 03:25","Date":"Global","Vues":232,"Couverture":68,"Mentions J\u2019aime":2,"Partages":0,"Commentaires":0,"Enregistrements":0},
-    {"Type de publication":"Image IG","Description":"Bienvenue chez Numerica ! Syriel en stage","Durée (s)":0,"Heure de publication":"02/19/2026 11:11","Date":"Global","Vues":242,"Couverture":82,"Mentions J\u2019aime":8,"Partages":0,"Commentaires":1,"Enregistrements":0},
-    {"Type de publication":"Image IG","Description":"Clap de fin pour la promotion 2025 CDA","Durée (s)":0,"Heure de publication":"02/13/2026 11:16","Date":"Global","Vues":224,"Couverture":80,"Mentions J\u2019aime":9,"Partages":0,"Commentaires":0,"Enregistrements":0},
-    {"Type de publication":"Image IG","Description":"En direct de la dernière soutenance dev web","Durée (s)":0,"Heure de publication":"03/12/2026 06:06","Date":"Global","Vues":88,"Couverture":43,"Mentions J\u2019aime":0,"Partages":0,"Commentaires":0,"Enregistrements":0}
+    {"Type de publication":"Reel IG","Description":"Clap de fin pour le stage de Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 12:26","Date":"Global","Vues":273,"Couverture":233,"Mentions J\u2019aime":9,"Partages":8,"Commentaires":0,"Enregistrements":0}
   ];
   store.meta = [
     {"Titre":"Remise diplômes CDA","Durée (s)":38,"Heure de publication":"02/20/2026 00:33","Date":"Global","Couverture":173,"Vues de vidéo de 3 secondes":82,"Secondes regardé(e)":1407.578,"Secondes moyen(ne) regardé(e)":8.043,"Réactions":5,"Commentaires":0,"Partages":0},
     {"Titre":"Fin de stage Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 07:10","Date":"Global","Couverture":214,"Vues de vidéo de 3 secondes":78,"Secondes regardé(e)":2716.616,"Secondes moyen(ne) regardé(e)":9.565,"Réactions":11,"Commentaires":1,"Partages":3}
   ];
-  setStatus('ig', '6 publications · démo', true);
+  setStatus('ig', '2 Reels · démo', true);
   setStatus('meta', '2 vidéos · démo', true);
   document.getElementById('periodBadge').textContent = 'Fév → Mars 2026';
   updateDashboard();
