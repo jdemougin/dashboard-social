@@ -451,23 +451,60 @@ function loadFile(platform, input) {
       try {
         const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
 
-        // Pour LinkedIn : chercher l'onglet qui contient les posts (pas les stats par date)
-        // L'onglet posts contient "Titre du post" dans ses colonnes (onglet 2 du XLS LinkedIn)
+        // Pour LinkedIn : chercher l'onglet "Tous les posts" (onglet 2)
+        // Les en-têtes sont en ligne 1 (ligne 0 = texte descriptif)
         let sheetName = wb.SheetNames[0];
         if (platform === 'li') {
-          for (const sn of wb.SheetNames) {
-            const ws2 = wb.Sheets[sn];
-            const preview = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: '' });
-            const headers = (preview[0] || []).map(h => String(h).toLowerCase().trim());
-            if (headers.some(h => h.includes('titre du post') || h.includes('type de post') || h.includes('publier le lien'))) {
-              sheetName = sn;
-              break;
+          // Chercher d'abord par nom exact
+          const exact = wb.SheetNames.find(n => n === 'Tous les posts' || n === 'All posts');
+          if (exact) {
+            sheetName = exact;
+          } else {
+            // Fallback : chercher l'onglet avec "Titre du post" en ligne 1
+            for (const sn of wb.SheetNames) {
+              const ws2 = wb.Sheets[sn];
+              const preview = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: '' });
+              // Chercher dans les 3 premières lignes
+              for (let li = 0; li < Math.min(3, preview.length); li++) {
+                const headers = (preview[li] || []).map(h => String(h).trim());
+                if (headers.some(h => h === 'Titre du post' || h === 'Type de post' || h === 'Publier le lien')) {
+                  sheetName = sn;
+                  break;
+                }
+              }
             }
           }
         }
 
         const ws = wb.Sheets[sheetName];
-        const rawData = XLSX.utils.sheet_to_json(ws, { defval: null });
+
+        // LinkedIn : les en-têtes sont en ligne 1 (ligne 0 = texte descriptif)
+        // On utilise sheet_to_json avec header:1 pour récupérer toutes les lignes
+        // puis on reconstruit avec les vrais en-têtes
+        let rawData;
+        if (platform === 'li') {
+          const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+          // Trouver la ligne d'en-tête (celle qui contient "Titre du post" ou "Impressions")
+          let headerRowIdx = 1; // par défaut ligne 1
+          for (let ri = 0; ri < Math.min(5, allRows.length); ri++) {
+            const row = allRows[ri] || [];
+            if (row.some(c => c === 'Titre du post' || c === 'Impressions' || c === 'Type de post')) {
+              headerRowIdx = ri;
+              break;
+            }
+          }
+          const headers = allRows[headerRowIdx] || [];
+          rawData = [];
+          for (let ri = headerRowIdx + 1; ri < allRows.length; ri++) {
+            const row = allRows[ri] || [];
+            if (row.every(c => c === null || c === '')) continue;
+            const obj = {};
+            headers.forEach((h, ci) => { if (h) obj[h] = row[ci] ?? null; });
+            rawData.push(obj);
+          }
+        } else {
+          rawData = XLSX.utils.sheet_to_json(ws, { defval: null });
+        }
 
         // Filtrer les lignes vides ou qui ne sont que des en-têtes répétés
         const cleaned = rawData.filter(r => {
@@ -746,7 +783,7 @@ function renderTable(igData, metaData, liData) {
   const allRows = [
     ...igData.map(r => ({ platform: 'ig', type: shortType(r['Type de publication'] || ''), desc: shortDesc(r['Description'] || ''), date: formatDate(r['Heure de publication']), vues: r['Vues'] || 0, couverture: r['Couverture'] || 0, likes: r["Mentions J\u2019aime"] || 0, partages: r['Partages'] || 0, duree: r['Durée (s)'] ? r['Durée (s)'] + 's' : '—' })),
     ...metaData.map(r => ({ platform: 'fb', type: 'Vidéo FB', desc: shortDesc(r['Titre'] || 'Vidéo'), date: formatDate(r['Heure de publication']), vues: r['Couverture'] || 0, couverture: r['Vues de vidéo de 3 secondes'] || 0, likes: r['Réactions'] || 0, partages: r['Partages'] || 0, duree: r['Durée (s)'] ? r['Durée (s)'] + 's' : '—' })),
-    ...liData.map(r => ({ platform: 'li', type: r[liTypeCol] || 'LinkedIn', desc: shortDesc(r[liDescCol] || 'Post LinkedIn'), date: formatDate(r[liDateCol]), vues: r[liImprCol] || 0, couverture: r[liVuesCol] || 0, likes: r[liLikesCol] || 0, partages: r[liShareCol] || 0, duree: '—' }))
+    ...liData.map(r => ({ platform: 'li', type: r[liTypeCol] || 'LinkedIn', desc: liDesc(r, liData), date: formatDate(r[liDateCol]), vues: r[liImprCol] || 0, couverture: r[liVuesCol] || 0, likes: r[liLikesCol] || 0, partages: r[liShareCol] || 0, duree: '—' }))
   ].sort((a, b) => b.vues - a.vues);
 
   // Types disponibles pour les filtres
@@ -868,29 +905,50 @@ function findColLi(data, keywords) {
   return '';
 }
 
-// Colonnes LinkedIn connues
+// Colonnes LinkedIn connues (noms exacts du fichier)
 function liCol(data, type) {
-  const map = {
-    impressions: ['Impressions', 'Impressions (total)'],
-    vues:        ['Vues'],
-    clics:       ['Clics', 'Clics (total)'],
-    likes:       ["J\u2019aime", "J'aime", 'Réactions', 'Réactions (total)'],
-    commentaires:['Commentaires', 'Commentaires (total)'],
-    partages:    ['Republications', 'Republications (total)'],
-    titre:       ['Titre du post'],
-    type:        ['Type de post', 'Type de contenu'],
-    date:        ['Date de création', 'Date'],
-    lien:        ['Publier le lien']
-  };
-  const candidates = map[type] || [];
   if (!data || !data.length) return '';
   const keys = Object.keys(data[0]);
-  for (const c of candidates) {
-    const found = keys.find(k => k.trim() === c || k.trim().toLowerCase() === c.toLowerCase());
+  const maps = {
+    impressions:  ['Impressions'],
+    vues:         ['Vues'],
+    clics:        ['Clics'],
+    likes:        ["J\u2019aime", "J'aime"],
+    commentaires: ['Commentaires'],
+    partages:     ['Republications'],
+    titre:        ['Titre du post'],
+    type:         ['Type de contenu', 'Type de post'],
+    date:         ['Date de cr\u00e9ation', 'Date'],
+    lien:         ['Publier le lien']
+  };
+  for (const candidate of (maps[type] || [])) {
+    const found = keys.find(k => k.trim() === candidate);
     if (found) return found;
   }
-  // fallback fuzzy
-  return findColLi(data, candidates.map(c => c.slice(0, 6)));
+  // Fallback fuzzy insensible aux accents
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const keywords = (maps[type] || []).map(c => norm(c.slice(0,6)));
+  for (const kw of keywords) {
+    const found = keys.find(k => norm(k).includes(kw));
+    if (found) return found;
+  }
+  return '';
+}
+
+// Raccourcit le texte d'un post LinkedIn (long texte → extrait)
+function liDesc(row, data) {
+  const titreCol = liCol(data, 'titre');
+  const lienCol = liCol(data, 'lien');
+  // Le titre peut être vide — on tente de reconstruire depuis le lien
+  const titre = titreCol ? (row[titreCol] || '') : '';
+  if (titre && titre.trim().length > 2) return shortDesc(titre);
+  // Sinon afficher l'URL raccourcie comme identifiant
+  if (lienCol && row[lienCol]) {
+    const url = String(row[lienCol]);
+    const id = url.split(':').pop();
+    return 'Post ' + id.slice(-8);
+  }
+  return 'Post LinkedIn';
 }
 
 function col(name) { return name; }
@@ -934,8 +992,16 @@ function shortDesc(d) {
 
 function formatDate(d) {
   if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); }
-  catch { return String(d); }
+  try {
+    // Gérer format DD/MM/YYYY (LinkedIn)
+    if (typeof d === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(d.trim())) {
+      const [day, month, year] = d.trim().split('/');
+      return new Date(`${year}-${month}-${day}`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    }
+    const date = new Date(d);
+    if (isNaN(date)) return String(d);
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  } catch { return String(d); }
 }
 
 function countByType(igData, metaData, liData) {
