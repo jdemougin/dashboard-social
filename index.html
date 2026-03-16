@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
+<!-- saved from url=(0062)file:///Users/juliendemougin/Downloads/dashboard-social_1.html -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Social Media — Numerica</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="./index_files/chart.umd.min.js"></script>
+<script src="./index_files/papaparse.min.js"></script>
+<script src="./index_files/xlsx.full.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
@@ -21,14 +21,14 @@
     --dim: #3a3f4e;
     --ig: #E1306C;
     --fb: #1877F2;
-    --li: #0A66C2;
+    --li: #F5A623;
     --accent: #7c6fea;
     --green: #3ecf8e;
     --amber: #f59e0b;
-    --reel: #a78bfa;
+    --reel: #E1306C;
     --image: #34d399;
     --carrousel: #fb923c;
-    --video: #60a5fa;
+    --video: #1877F2;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -97,10 +97,10 @@
   .upload-card input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   .upload-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .platform-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .dot-ig { background: var(--ig); }
-  .dot-fb { background: var(--fb); }
-  .dot-li { background: var(--li); }
-  .dot-meta { background: var(--accent); }
+  .dot-ig   { background: #E1306C; }
+  .dot-fb   { background: #1877F2; }
+  .dot-li   { background: #F5A623; }
+  .dot-meta { background: #1877F2; }
   .upload-card-name { font-size: 12px; font-weight: 500; }
   .upload-card-status { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
   .upload-card.loaded .upload-card-status { color: var(--green); }
@@ -196,14 +196,15 @@
     letter-spacing: 0.03em;
     white-space: nowrap;
   }
-  .tag-reel { background: rgba(167,139,250,0.15); color: var(--reel); border: 1px solid rgba(167,139,250,0.3); }
-  .tag-image { background: rgba(52,211,153,0.12); color: var(--image); border: 1px solid rgba(52,211,153,0.25); }
-  .tag-carrousel { background: rgba(251,146,60,0.12); color: var(--carrousel); border: 1px solid rgba(251,146,60,0.25); }
-  .tag-video { background: rgba(96,165,250,0.12); color: var(--video); border: 1px solid rgba(96,165,250,0.25); }
-  .p-ig { background: rgba(225,48,108,0.15); color: var(--ig); border: 1px solid rgba(225,48,108,0.3); }
-  .p-fb { background: rgba(24,119,242,0.15); color: #60a5fa; border: 1px solid rgba(24,119,242,0.3); }
-  .p-li { background: rgba(10,102,194,0.15); color: #38bdf8; border: 1px solid rgba(10,102,194,0.25); }
-  .tag-linkedin { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+  .tag-reel     { background: rgba(225,48,108,0.15); color: #E1306C; border: 1px solid rgba(225,48,108,0.3); }
+  .tag-image    { background: rgba(225,48,108,0.12); color: #E1306C; border: 1px solid rgba(225,48,108,0.25); }
+  .tag-carrousel{ background: rgba(225,48,108,0.12); color: #E1306C; border: 1px solid rgba(225,48,108,0.25); }
+  .tag-video    { background: rgba(24,119,242,0.12); color: #1877F2; border: 1px solid rgba(24,119,242,0.25); }
+  .tag-video-fb { background: rgba(24,119,242,0.12); color: #1877F2; border: 1px solid rgba(24,119,242,0.25); }
+  .tag-linkedin { background: rgba(245,166,35,0.12);  color: #F5A623; border: 1px solid rgba(245,166,35,0.3); }
+  .p-ig { background: rgba(225,48,108,0.15); color: #E1306C; border: 1px solid rgba(225,48,108,0.3); }
+  .p-fb { background: rgba(24,119,242,0.15); color: #1877F2; border: 1px solid rgba(24,119,242,0.3); }
+  .p-li { background: rgba(245,166,35,0.15);  color: #F5A623; border: 1px solid rgba(245,166,35,0.3); }
 
   /* ---- FILTRES ---- */
   .filter-bar {
@@ -228,12 +229,10 @@
   }
   .filter-btn:hover { border-color: var(--text); color: var(--text); }
   .filter-btn.active { color: var(--bg); border-color: transparent; }
-  .filter-btn[data-type="Tous"].active { background: var(--muted); }
-  .filter-btn[data-type="Reel"].active { background: var(--reel); }
-  .filter-btn[data-type="Image"].active { background: var(--image); }
-  .filter-btn[data-type="Carrousel"].active { background: var(--carrousel); }
-  .filter-btn[data-type="Vidéo FB"].active { background: var(--video); }
-  .filter-btn[data-type="LinkedIn"].active { background: #38bdf8; }
+  .filter-btn[data-type="Tous"].active    { background: var(--muted); }
+  .filter-btn[data-type="Reel"].active    { background: #E1306C; }
+  .filter-btn[data-type="Vidéo FB"].active { background: #1877F2; }
+  .filter-btn[data-type="LinkedIn"].active { background: #F5A623; }
 
   /* ---- TOAST ---- */
   .toast {
@@ -323,60 +322,178 @@
   <div>
     <div class="logo">Numerica · Pôle Numérique BFC</div>
     <h1>Dashboard Vidéos</h1>
-    <div id="dashSubtitle" style="font-size:12px;color:var(--muted);margin-top:3px">Instagram Reels · Facebook · LinkedIn</div>
+    <div id="dashSubtitle" style="font-size:12px;color:var(--muted);margin-top:3px">4 vidéos · Instagram · Facebook · LinkedIn</div>
   </div>
-  <div class="period-badge" id="periodBadge">Aucune donnée chargée</div>
+  <div class="period-badge" id="periodBadge">19 févr. 2026 → 13 mars 2026</div>
 </header>
 
 <div class="upload-section">
   <div class="upload-title">Importer les fichiers du mois</div>
   <div class="upload-grid">
-    <label class="upload-card" id="card-ig">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('ig', this)">
+    <label class="upload-card loaded" id="card-ig">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(&#39;ig&#39;, this)">
       <div class="upload-card-header">
         <div class="platform-dot dot-ig"></div>
         <div class="upload-card-name">Instagram</div>
       </div>
-      <div class="upload-card-status" id="status-ig">Déposer le .csv</div>
+      <div class="upload-card-status" id="status-ig">✓ 2 Reels</div>
       <span class="check">✓</span>
     </label>
-    <label class="upload-card" id="card-meta">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('meta', this)">
+    <label class="upload-card loaded" id="card-meta">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(&#39;meta&#39;, this)">
       <div class="upload-card-header">
         <div class="platform-dot dot-meta"></div>
-        <div class="upload-card-name">Meta Vidéos</div>
-      </div>
-      <div class="upload-card-status" id="status-meta">Déposer le .csv</div>
-      <span class="check">✓</span>
-    </label>
-    <label class="upload-card" id="card-fb">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('fb', this)">
-      <div class="upload-card-header">
-        <div class="platform-dot dot-fb"></div>
         <div class="upload-card-name">Facebook</div>
       </div>
-      <div class="upload-card-status" id="status-fb">Déposer le .csv</div>
+      <div class="upload-card-status" id="status-meta">✓ 2 vidéos</div>
       <span class="check">✓</span>
     </label>
     <label class="upload-card" id="card-li">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile('li', this)">
+      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(&#39;li&#39;, this)">
       <div class="upload-card-header">
         <div class="platform-dot dot-li"></div>
         <div class="upload-card-name">LinkedIn</div>
       </div>
-      <div class="upload-card-status" id="status-li">Déposer le .xls / .xlsx / .csv</div>
+      <div class="upload-card-status" id="status-li">Déposer le .xls</div>
       <span class="check">✓</span>
     </label>
   </div>
 </div>
 
-<main id="mainContent">
-  <div class="empty-state" id="emptyState">
+<main id="mainContent"><div id="kpi-section" class="kpi-row">
+    <div class="kpi k-views">
+      <div class="kpi-label">Vues totales</div>
+      <div class="kpi-value">1.1k</div>
+      <div class="kpi-sub">IG + Meta vidéos</div>
+    </div>
+    <div class="kpi k-reach">
+      <div class="kpi-label">Couverture IG</div>
+      <div class="kpi-value">532</div>
+      <div class="kpi-sub">personnes atteintes</div>
+    </div>
+    <div class="kpi k-engage">
+      <div class="kpi-label">Engagements</div>
+      <div class="kpi-value">52</div>
+      <div class="kpi-sub">likes + partages + commentaires</div>
+    </div>
+    <div class="kpi k-posts">
+      <div class="kpi-label">Publications</div>
+      <div class="kpi-value">4</div>
+      <div class="kpi-sub">2 Reel · 2 Vidéo FB</div>
+    </div>
+    <div class="kpi k-retention">
+      <div class="kpi-label">Rétention moy. FB</div>
+      <div class="kpi-value">9s</div>
+      <div class="kpi-sub">durée moyenne regardée</div>
+    </div>
+  </div>
+  <div class="empty-state" id="emptyState" style="display: none;">
     <div class="empty-icon">📊</div>
     <div class="empty-title">Importe tes fichiers pour voir le dashboard</div>
     <div class="empty-sub">Glisse les exports CSV/XLS de chaque plateforme dans les zones ci-dessus</div>
   </div>
-</main>
+<div id="charts-section" class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Vues par type de contenu</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chartType" width="871" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 871px;"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Répartition des publications</div>
+      </div>
+      <div class="chart-wrap"><canvas id="chartDoughnut" width="871" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 871px;"></canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-header">
+        <div class="chart-title">Performance par publication</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#E1306C"></div>Instagram</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#1877F2"></div>Facebook</div>
+          
+        </div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chartPosts" width="1799" height="280" style="display: block; box-sizing: border-box; height: 280px; width: 1799px;"></canvas></div>
+    </div>
+  </div><div id="table-section" class="table-card">
+    <div class="chart-header" style="margin-bottom:14px">
+      <div class="chart-title">Détail par publication</div>
+    </div>
+    <div class="filter-bar" style="margin-bottom:14px">
+      <span class="filter-label">Filtrer</span>
+      <button class="filter-btn active" data-type="Tous" onclick="setFilter(&#39;Tous&#39;)">Tous</button><button class="filter-btn" data-type="Reel" onclick="setFilter(&#39;Reel&#39;)">Reel</button><button class="filter-btn" data-type="Vidéo FB" onclick="setFilter(&#39;Vidéo FB&#39;)">Vidéo FB</button>
+      <button class="reset-btn" onclick="resetAllData()" title="Effacer toutes les données">↺ Tout réinitialiser</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Plateforme</th><th>Type</th><th>Publication</th><th>Date</th>
+        <th>Vues / Impressions</th><th>Couverture</th><th>Likes</th><th>Partages</th><th>Durée</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="tag p-ig">IG</span></td>
+          <td><span class="tag tag-reel">Reel</span></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">Cérémonie de remise des diplômes CDA</td>
+          <td class="num" style="color:var(--muted)">19 févr.</td>
+          <td class="num"><strong>402</strong></td>
+          <td class="num">299</td>
+          <td class="num">9</td>
+          <td class="num">6</td>
+          <td class="num" style="color:var(--muted)">38s</td>
+        </tr><tr>
+          <td><span class="tag p-ig">IG</span></td>
+          <td><span class="tag tag-reel">Reel</span></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">Clap de fin pour le stage de Syriel</td>
+          <td class="num" style="color:var(--muted)">13 mars</td>
+          <td class="num"><strong>273</strong></td>
+          <td class="num">233</td>
+          <td class="num">9</td>
+          <td class="num">8</td>
+          <td class="num" style="color:var(--muted)">51s</td>
+        </tr><tr>
+          <td><span class="tag p-fb">FB</span></td>
+          <td><span class="tag tag-video-fb">Vidéo FB</span></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">Fin de stage Syriel</td>
+          <td class="num" style="color:var(--muted)">13 mars</td>
+          <td class="num"><strong>214</strong></td>
+          <td class="num">78</td>
+          <td class="num">11</td>
+          <td class="num">3</td>
+          <td class="num" style="color:var(--muted)">51s</td>
+        </tr><tr>
+          <td><span class="tag p-fb">FB</span></td>
+          <td><span class="tag tag-video-fb">Vidéo FB</span></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">Remise diplômes CDA</td>
+          <td class="num" style="color:var(--muted)">20 févr.</td>
+          <td class="num"><strong>173</strong></td>
+          <td class="num">82</td>
+          <td class="num">5</td>
+          <td class="num">0</td>
+          <td class="num" style="color:var(--muted)">38s</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);text-align:right">4 publications affichées</div>
+  </div><div id="insights-section" class="insights-grid">
+    <div class="insight">
+      <div class="insight-icon">🏆</div>
+      <div class="insight-title">Meilleure publication</div>
+      <div class="insight-body">"Cérémonie de remise des diplômes CDA" <span style="opacity:.6;font-size:11px">(IG)</span><br>avec <strong>402 impressions/vues</strong></div>
+    </div>
+    
+    <div class="insight">
+      <div class="insight-icon">⏱</div>
+      <div class="insight-title">Rétention Facebook</div>
+      <div class="insight-body">Durée moyenne regardée : <strong>9s</strong> sur des vidéos de 45s en moyenne</div>
+    </div>
+    
+    <div class="insight">
+      <div class="insight-icon">📅</div>
+      <div class="insight-title">Volume publié</div>
+      <div class="insight-body">2 Reel<br>2 Vidéo FB</div>
+    </div>
+  </div></main>
 
 <script>
 // ---- DATA STORE ----
@@ -440,7 +557,7 @@ function parseBiff8LinkedIn(buffer) {
   const wbDv = new DataView(wbBuf);
   const wbU8 = new Uint8Array(wbBuf);
 
-  // Extraire le SST (Shared String Table)
+  // Extraire le SST (Shared String Table) en gérant les CONTINUE records
   const strings = [];
   let i = 0;
   while (i < wbBuf.byteLength - 4) {
@@ -448,28 +565,71 @@ function parseBiff8LinkedIn(buffer) {
     const rl = wbDv.getUint16(i + 2, true);
     if (rt === 0x00FC) { // SST
       const total = wbDv.getUint32(i + 8, true);
-      let pos = i + 12;
-      for (let s = 0; s < total && pos + 3 < wbBuf.byteLength; s++) {
-        const slen = wbDv.getUint16(pos, true);
-        const grbit = wbU8[pos + 2];
-        pos += 3;
-        if (grbit & 4) pos += 4;
-        if (grbit & 8) pos += 4;
-        if (grbit & 1) {
-          let str = '';
-          for (let c = 0; c < slen && pos + 1 < wbBuf.byteLength; c++) {
-            str += String.fromCodePoint(wbDv.getUint16(pos, true));
-            pos += 2;
-          }
-          strings.push(str);
-        } else {
-          let str = '';
-          for (let c = 0; c < slen && pos < wbBuf.byteLength; c++) {
-            str += String.fromCharCode(wbU8[pos++]);
-          }
-          strings.push(str);
-        }
+
+      // Construire les segments SST + CONTINUE en un seul flux de bytes
+      // avec marqueurs de limite pour gérer le grbit de continuation
+      const segs = [{ start: i + 4, len: rl }];
+      let k = i + 4 + rl;
+      while (k < wbBuf.byteLength - 4) {
+        const rt2 = wbDv.getUint16(k, true);
+        const rl2 = wbDv.getUint16(k + 2, true);
+        if (rt2 === 0x003C) { // CONTINUE
+          segs.push({ start: k + 4, len: rl2, isCont: true });
+          k += 4 + rl2;
+        } else break;
       }
+
+      // Curseur de lecture à travers les segments
+      let segIdx = 0;
+      let segOff = 8; // skip cbtotal(4)+count(4) dans le premier segment
+      let isUnicode = false;
+
+      function nextByte() {
+        while (segIdx < segs.length) {
+          const seg = segs[segIdx];
+          if (segOff < seg.len) return wbU8[seg.start + segOff++];
+          segIdx++;
+          segOff = 0;
+          // Au début d'un CONTINUE, le 1er byte est un nouveau grbit
+          if (segIdx < segs.length && segs[segIdx].isCont) {
+            const newGrbit = wbU8[segs[segIdx].start + segOff++];
+            isUnicode = !!(newGrbit & 1);
+          }
+        }
+        return null;
+      }
+      function nextU16() {
+        const b0 = nextByte(); const b1 = nextByte();
+        return (b0 === null || b1 === null) ? null : b0 | (b1 << 8);
+      }
+      function nextU32() {
+        const w0 = nextU16(); const w1 = nextU16();
+        return (w0 === null || w1 === null) ? null : w0 | (w1 << 16);
+      }
+
+      for (let s = 0; s < total; s++) {
+        const slen = nextU16(); if (slen === null) break;
+        const grbit = nextByte(); if (grbit === null) break;
+        isUnicode = !!(grbit & 1);
+        let richCount = 0, farEastLen = 0;
+        if (grbit & 4) { const v = nextU16(); richCount = v || 0; }
+        if (grbit & 8) { const v = nextU32(); farEastLen = v || 0; }
+
+        let str = '';
+        for (let c = 0; c < slen; c++) {
+          if (isUnicode) {
+            const cp = nextU16(); if (cp === null) break;
+            str += String.fromCodePoint(cp);
+          } else {
+            const b = nextByte(); if (b === null) break;
+            str += String.fromCharCode(b);
+          }
+        }
+        for (let r = 0; r < richCount * 4; r++) nextByte();
+        for (let f = 0; f < farEastLen; f++) nextByte();
+        strings.push(str);
+      }
+      console.log('[BIFF8] SST parsed:', strings.length, '/', total);
       break;
     }
     i += 4 + rl;
@@ -626,16 +786,16 @@ function loadFile(platform, input) {
           try {
             const data = parseBiff8LinkedIn(buffer);
             console.log('[LI] Résultat parser:', data.length, 'lignes');
-            if (data.length > 0) console.log('[LI] Première ligne:', JSON.stringify(data[0]).slice(0, 200));
-            if (data && data.length > 0) {
-            const { deduped, dupes } = deduplicateData(platform, data);
-            store[platform] = deduped;
-            if (dupes > 0) {
-              showToast(`${dupes} doublon${dupes > 1 ? 's' : ''} ignoré${dupes > 1 ? 's' : ''} · ${deduped.length} lignes au total`, 'warn');
-            } else {
-              showToast(`${data.length} posts LinkedIn importés depuis ${file.name}`);
+            if (data.length > 0) {
+              console.log('[LI] Clés disponibles:', Object.keys(data[0]));
+              console.log('[LI] Type de contenu row0:', data[0]['Type de contenu']);
+              console.log('[LI] Toutes valeurs Type de contenu:', data.map(r => r['Type de contenu'] || '(vide)'));
             }
-            setStatus(platform, `${deduped.length} lignes · ${file.name}`, true);
+            if (data && data.length > 0) {
+            // Pour LinkedIn on remplace toujours (pas de fusion avec anciennes données)
+            store[platform] = data;
+            showToast(`${data.length} posts LinkedIn importés depuis ${file.name}`);
+            setStatus(platform, `${data.length} lignes · ${file.name}`, true);
             updateDashboard();
           } else {
             setStatus(platform, '⚠ Aucune donnée trouvée', false);
@@ -757,25 +917,12 @@ function updateDashboard() {
   // Meta Facebook : toutes les entrées sont déjà des vidéos
   const metaData = (store.meta || []).filter(r => r['Date'] === 'Global' || !r['Date']);
 
-  // LinkedIn : garder uniquement les vidéos
-  // "Type de contenu" = "Vidéo" pour les vraies vidéos
-  // Les autres posts ont cette colonne vide → on les exclut
-  const liTypeColRaw = liCol(store.li || [], 'type');
+  // LinkedIn : garder uniquement les posts avec "Vidéo" dans "Type de contenu"
   const allLi = store.li || [];
-
-  console.log('[FILTER LI] total posts:', allLi.length);
-  console.log('[FILTER LI] type col:', liTypeColRaw);
-  if (allLi.length > 0) {
-    console.log('[FILTER LI] types trouvés:', [...new Set(allLi.map(r => r[liTypeColRaw] || '(vide)'))]);
-  }
-
-  const liVideos = allLi.filter(r => {
-    const t = String(r[liTypeColRaw] || '').trim().toLowerCase();
-    return t.includes('vid');
-  });
-
-  console.log('[FILTER LI] vidéos filtrées:', liVideos.length);
-  const liDataFinal = liVideos;
+  const liDataFinal = allLi.filter(r =>
+    String(r['Type de contenu'] || '').trim().toLowerCase().includes('vid')
+  );
+  console.log('[FILTER LI] total posts:', allLi.length, '| vidéos:', liDataFinal.length);
 
   // Période
   const dates = [
@@ -792,7 +939,7 @@ function updateDashboard() {
   // Afficher le nb de vidéos filtrées dans le badge
   const totalVideos = igData.length + metaData.length + liDataFinal.length;
   const subtitle = document.getElementById('dashSubtitle');
-  if (subtitle) subtitle.textContent = `${totalVideos} vidéo${totalVideos > 1 ? 's' : ''} · Instagram Reels · Facebook · LinkedIn`;
+  if (subtitle) subtitle.textContent = `${totalVideos} vidéo${totalVideos > 1 ? 's' : ''} · Instagram · Facebook · LinkedIn`;
 
   renderKPIs(igData, metaData, liDataFinal);
   renderCharts(igData, metaData, liDataFinal);
@@ -834,7 +981,7 @@ function renderKPIs(igData, metaData, liData) {
       <div class="kpi-value">${totalPosts}</div>
       <div class="kpi-sub">${countByType(igData, metaData, liData)}</div>
     </div>
-    ${liImpressions ? `<div class="kpi k-retention" style="--accent:var(--li)">
+    ${liImpressions ? `<div class="kpi k-retention" style="--accent:#F5A623">
       <div class="kpi-label">Impressions LinkedIn</div>
       <div class="kpi-value">${fmt(liImpressions)}</div>
       <div class="kpi-sub">${liEngagements ? fmt(liEngagements) + ' engagements' : liData.length + ' publications'}</div>
@@ -879,7 +1026,7 @@ function renderCharts(igData, metaData, liData) {
     ...liData.map(r => ({ label: shortDesc(r[liCol(liData,'titre')] || 'Post LinkedIn'), vues: r[liCol(liData,'impressions')] || 0, type: 'LinkedIn', date: r[liCol(liData,'date')] || '' }))
   ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const liBlock = liData.length ? `<div class="legend-item"><div class="legend-dot" style="background:var(--li)"></div>LinkedIn</div>` : '';
+  const liBlock = liData.length ? `<div class="legend-item"><div class="legend-dot" style="background:#F5A623"></div>LinkedIn</div>` : '';
 
   section.innerHTML = `
     <div class="chart-card">
@@ -898,10 +1045,8 @@ function renderCharts(igData, metaData, liData) {
       <div class="chart-header">
         <div class="chart-title">Performance par publication</div>
         <div class="legend">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--reel)"></div>Reel</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--image)"></div>Image</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--carrousel)"></div>Carrousel</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--video)"></div>Vidéo FB</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#E1306C"></div>Instagram</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#1877F2"></div>Facebook</div>
           ${liBlock}
         </div>
       </div>
@@ -946,7 +1091,7 @@ function renderTable(igData, metaData, liData) {
   const liShareCol  = liCol(liData, 'partages');
   const liDescCol   = liCol(liData, 'titre');
   const liDateCol   = liCol(liData, 'date');
-  const liTypeCol   = liCol(liData, 'type');
+  const liTypeCol   = 'Type de contenu';  // nom exact dans le fichier LinkedIn
   const liVuesCol   = liCol(liData, 'vues');
 
   const allRows = [
@@ -994,18 +1139,18 @@ function renderTable(igData, metaData, liData) {
 
 function setFilter(type) {
   activeFilter = type;
-  const igData = (store.ig || []).filter(r => r['Date'] === 'Global' || !r['Date']);
+  const igData = (store.ig || []).filter(r => r['Date'] === 'Global' || !r['Date']).filter(r => (r['Type de publication'] || '').includes('Reel'));
   const metaData = (store.meta || []).filter(r => r['Date'] === 'Global' || !r['Date']);
-  const liData = store.li || [];
-  renderTable(igData, metaData, liData);
+  const liDataF = (store.li || []).filter(r => String(r['Type de contenu'] || '').trim().toLowerCase().includes('vid'));
+  renderTable(igData, metaData, liDataF);
 }
 
 function resetAllData() {
   if (!confirm('Effacer toutes les données importées et repartir de zéro ?')) return;
-  store.ig = null; store.meta = null; store.fb = null; store.li = null;
+  store.ig = null; store.meta = null; store.li = null;
   activeFilter = 'Tous';
-  ['ig','meta','fb','li'].forEach(p => {
-    setStatus(p, p === 'li' ? 'Déposer le .xls / .xlsx / .csv' : 'Déposer le .csv', false);
+  ['ig','meta','li'].forEach(p => {
+    setStatus(p, p === 'li' ? 'Déposer le .xls' : 'Déposer le .csv', false);
     document.getElementById(`card-${p}`).classList.remove('loaded');
   });
   document.getElementById('periodBadge').textContent = 'Aucune donnée chargée';
@@ -1161,7 +1306,14 @@ function shortType(t) {
 }
 
 function typeColor(t) {
-  const map = { 'Reel': '#a78bfa', 'Image': '#34d399', 'Carrousel': '#fb923c', 'Vidéo FB': '#60a5fa', 'LinkedIn': '#38bdf8', 'Autre': '#94a3b8' };
+  const map = {
+    'Reel':      '#E1306C',  // Rose Instagram
+    'Image':     '#E1306C',
+    'Carrousel': '#E1306C',
+    'Vidéo FB':  '#1877F2',  // Bleu Facebook
+    'LinkedIn':  '#F5A623',  // Teal LinkedIn
+    'Autre':     '#94a3b8'
+  };
   return map[t] || '#94a3b8';
 }
 
@@ -1222,7 +1374,6 @@ function destroyChart(id) {
 
 // ---- DEMO DATA (données Numerica déjà chargées) ----
 window.addEventListener('load', () => {
-  // Pré-charger les données connues
   store.ig = [
     {"Type de publication":"Reel IG","Description":"Cérémonie de remise des diplômes CDA","Durée (s)":38,"Heure de publication":"02/19/2026 23:11","Date":"Global","Vues":402,"Couverture":299,"Mentions J\u2019aime":9,"Partages":6,"Commentaires":0,"Enregistrements":0},
     {"Type de publication":"Reel IG","Description":"Clap de fin pour le stage de Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 12:26","Date":"Global","Vues":273,"Couverture":233,"Mentions J\u2019aime":9,"Partages":8,"Commentaires":0,"Enregistrements":0}
@@ -1231,11 +1382,14 @@ window.addEventListener('load', () => {
     {"Titre":"Remise diplômes CDA","Durée (s)":38,"Heure de publication":"02/20/2026 00:33","Date":"Global","Couverture":173,"Vues de vidéo de 3 secondes":82,"Secondes regardé(e)":1407.578,"Secondes moyen(ne) regardé(e)":8.043,"Réactions":5,"Commentaires":0,"Partages":0},
     {"Titre":"Fin de stage Syriel","Durée (s)":51,"Heure de publication":"03/13/2026 07:10","Date":"Global","Couverture":214,"Vues de vidéo de 3 secondes":78,"Secondes regardé(e)":2716.616,"Secondes moyen(ne) regardé(e)":9.565,"Réactions":11,"Commentaires":1,"Partages":3}
   ];
+  // Pas de données démo LinkedIn — elles seront chargées via le fichier XLS
+  store.li = null;
   setStatus('ig', '2 Reels · démo', true);
   setStatus('meta', '2 vidéos · démo', true);
   document.getElementById('periodBadge').textContent = 'Fév → Mars 2026';
   updateDashboard();
 });
 </script>
-</body>
-</html>
+
+
+</body></html>
