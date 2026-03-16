@@ -1263,15 +1263,28 @@ function formatDate(d) {
   try {
     // Date Excel numérique (ex: 46066) → convertir
     if (typeof d === 'number') {
-      // Excel date serial : 1 = 1 jan 1900, avec bug bissextile 1900
       const excelEpoch = new Date(1899, 11, 30);
       const ms = excelEpoch.getTime() + d * 86400000;
       return new Date(ms).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     }
     const s = String(d).trim();
-    // Format DD/MM/YYYY (LinkedIn CSV)
+    // Format MM/DD/YYYY (LinkedIn XLS) ou DD/MM/YYYY
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
-      const [day, month, year] = s.split('/');
+      const [a, b, year] = s.split('/');
+      // Si le premier nombre > 12 c'est forcément un jour (DD/MM/YYYY)
+      // Si le deuxième nombre > 12 c'est forcément un jour (MM/DD/YYYY)
+      // LinkedIn exporte en MM/DD/YYYY
+      let month, day;
+      if (parseInt(b) > 12) {
+        // MM/DD/YYYY
+        month = a; day = b;
+      } else if (parseInt(a) > 12) {
+        // DD/MM/YYYY
+        day = a; month = b;
+      } else {
+        // Ambigu — LinkedIn utilise MM/DD/YYYY donc on assume ça
+        month = a; day = b;
+      }
       return new Date(`${year}-${month}-${day}`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     }
     // Format MM/DD/YYYY HH:MM (Instagram/Meta)
