@@ -758,17 +758,23 @@ function updateDashboard() {
   const metaData = (store.meta || []).filter(r => r['Date'] === 'Global' || !r['Date']);
 
   // LinkedIn : garder uniquement les vidéos
-  // La colonne "Type de contenu" contient "Vidéo" pour les vidéos
+  // "Type de contenu" = "Vidéo" pour les vraies vidéos
+  // Les autres posts ont cette colonne vide → on les exclut
   const liTypeColRaw = liCol(store.li || [], 'type');
   const allLi = store.li || [];
 
-  // Vérifier si des lignes ont bien le type "Vidéo"
+  console.log('[FILTER LI] total posts:', allLi.length);
+  console.log('[FILTER LI] type col:', liTypeColRaw);
+  if (allLi.length > 0) {
+    console.log('[FILTER LI] types trouvés:', [...new Set(allLi.map(r => r[liTypeColRaw] || '(vide)'))]);
+  }
+
   const liVideos = allLi.filter(r => {
     const t = String(r[liTypeColRaw] || '').trim().toLowerCase();
     return t.includes('vid');
   });
 
-  // Si aucune vidéo trouvée (type absent ou vide), ne rien afficher pour LI
+  console.log('[FILTER LI] vidéos filtrées:', liVideos.length);
   const liDataFinal = liVideos;
 
   // Période
